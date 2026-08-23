@@ -23,10 +23,8 @@ def suspend[A, E: EffectonError, R](
 ) -> Effect[A, E, R]: ...
 
 
-# mypy wrongly claims signature 1 shadows this one; calls with argument-taking
-# functions do resolve here (pinned in tests/test_types_suspend.py).
 @overload
-def suspend[**P, A, E: EffectonError, R](  # type: ignore[overload-cannot-match]
+def suspend[**P, A, E: EffectonError, R](
     f: Callable[P, Effect[A, E, R]],
 ) -> Callable[P, Effect[A, E, R]]: ...
 

@@ -1,6 +1,6 @@
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, Never, TypeVar, final
+from typing import Any, Literal, Never, final
 
 from typing_extensions import TypeForm
 
@@ -25,39 +25,36 @@ class Die:
     defect: Any
 
 
-type Cause[E] = Fail[E] | Die
-
-# Variance is declared through old-style TypeVars: mypy's PEP 695
-# inference wrongly makes A, E, and R invariant once the class has a
-# third type parameter. This might be unnecessary once we switch to ty.
-A = TypeVar("A", covariant=True)
-E = TypeVar("E", bound=EffectonError, covariant=True, default=Never)
-R = TypeVar("R", covariant=True, default=Never)
+type Cause[E: EffectonError] = Fail[E] | Die
 
 
-class Effect(Generic[A, E, R]):
+class Effect[A, E: EffectonError = Never, R = Never]:
     def flat_map[B, E2: EffectonError, R2](
         self, f: Callable[[A], Effect[B, E2, R2]]
     ) -> Effect[B, E | E2, R | R2]:
         return FlatMap(self, f)
 
     def map[B](self, f: Callable[[A], B]) -> Effect[B, E, R]:
-        return self.flat_map(lambda a: Success(f(a)))  # type: ignore[misc]
+        return self.flat_map(lambda a: Success(f(a)))
 
     def catch_all[B, E2: EffectonError, R2](
         self, f: Callable[[E], Effect[B, E2, R2]]
     ) -> Effect[A | B, E2, R | R2]:
-        return OnFailure(self, f)
+        # Explicit specialization: ty infers OnFailure's A from the handler
+        # alone (giving B), which rejects self as the first argument.
+        return OnFailure[A | B, E2, R | R2](self, f)
 
     def on_exit[R2](self, finalizer: Effect[Any, Never, R2]) -> Effect[A, E, R | R2]:
         return OnExit(self, finalizer)
 
-    def __iter__(self) -> Generator[Effect[A, E, R], A, A]:
+    def __iter__(self) -> Generator[Effect[A, E, R], Any, A]:
         """Make ``x = yield from effect`` infer ``x`` as A inside @gen.
 
         A bare ``yield`` types as the generator's single send type (Any).
         ``yield from`` takes this method's return type parameter instead,
         so the value the interpreter sends back is typed per expression.
+        The send channel is Any, not A: a contravariant slot would make
+        ty's inferred variance for A invariant, breaking covariance.
         """
         return (yield self)
 

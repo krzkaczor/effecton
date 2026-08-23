@@ -70,9 +70,7 @@ Furthermore, *agents love* strict type systems and building blocks.
 
 ## Current limitations & plan forward
 
-The whole project was designed with the `mypy` type checker in mind, which turns out might not be the best idea. Requirements, error channels, and generator syntax work, but there are some rough edges. In particular: `mypy` can't type requirement subtraction, so `RequirementProvider` needs all requirements provided at once (at the root of the program) or the `R` channel degenerates to `object`.
-
-My current plan is to standardize on the `ty` type checker. The only blocker is its lack of support for the `yield from` trick that we use.
+The project standardizes on the [`ty`](https://github.com/astral-sh/ty) type checker. Requirements, error channels, and generator syntax work, with one known gap: `ty` doesn't yet thread `Effect.__iter__` through `yield from`, so the value sent back into a `@gen` program types as `Unknown` for now (canary assertions in `tests/test_types_gen.py` flag when that changes).
 
 ## Overview
 

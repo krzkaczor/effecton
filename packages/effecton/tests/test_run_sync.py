@@ -268,7 +268,7 @@ def test_provide_scope_unwinds_on_typed_failure():
 
 def test_missing_requirement_dies():
     # Only reachable outside the typed API (pinned as a type error here).
-    result = E.run_sync(E.require(str))  # type: ignore[arg-type]
+    result = E.run_sync(E.require(str))  # ty: ignore[invalid-argument-type]
 
     assert result == E.Failure(cause=E.Die(defect=E.MissingRequirement(str)))
 

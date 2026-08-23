@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never, assert_type
+from typing import Literal, Never, assert_type
 
 import effecton as E
 
@@ -51,10 +51,9 @@ _needs_scope_and_db = _needs_scope.flat_map(lambda n: E.require(Db).map(lambda _
 assert_type(_needs_scope_and_db, E.Effect[int, ParseError, E.Scope | Db])
 assert_type(E.scoped(_needs_scope_and_db), E.Effect[int, ParseError, Db])
 
-# KNOWN LIMITATION: with more than one requirement left after Scope,
-# bare scoped() inference collapses R: mypy joins the leftover union
-# members (Db, Logger, Cache) to object instead of keeping their union.
-# Use and_scoped() for that case.
+# With more than one requirement left after Scope, bare scoped() keeps
+# the leftover union intact (mypy used to join Db, Logger, Cache to
+# object, which forced and_scoped() for this case).
 _needs_scope_and_three = E.add_finalizer(E.success(None)).flat_map(
     lambda _: needs_three
 )
@@ -64,7 +63,7 @@ assert_type(
 )
 assert_type(
     E.scoped(_needs_scope_and_three),
-    E.Effect[tuple[Db, Logger, Cache], Never, object],
+    E.Effect[tuple[Db, Logger, Cache], Never, Db | Logger | Cache],
 )
 
 # --- and_scoped: R stays bound from the chain, so nothing collapses ---
@@ -91,7 +90,7 @@ assert_type(
 # --- and_scoped: negative tests ---
 
 # Requirements the chain does not cover are rejected.
-E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(_needs_scope_and_three)  # type: ignore[arg-type]
+E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(_needs_scope_and_three)  # ty: ignore[invalid-argument-type]
 
 
 # --- scoped: negative tests ---
@@ -100,14 +99,14 @@ E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(_needs_scope_and_th
 # A leftover non-Scope requirement keeps the effect unrunnable.
 # Type-checked only; never called.
 def _scoped_leftover_requirement_is_not_runnable() -> None:
-    E.run_sync(E.scoped(_needs_scope_and_db))  # type: ignore[arg-type]
+    E.run_sync(E.scoped(_needs_scope_and_db))  # ty: ignore[invalid-argument-type]
 
 
 # --- acquire_and_release: the resource's lifetime lives in the Scope channel ---
 
 _resource = E.acquire_and_release(E.success(1), lambda _: E.success(None))
-assert_type(_resource, E.Effect[int, Never, E.Scope])
-assert_type(E.scoped(_resource), E.Effect[int])
+assert_type(_resource, E.Effect[Literal[1], Never, E.Scope])
+assert_type(E.scoped(_resource), E.Effect[Literal[1]])
 
 # acquire's typed errors surface in E.
 _failing_resource = E.acquire_and_release(parse("1"), lambda _: E.success(None))
@@ -131,8 +130,8 @@ assert_type(
 # Unrunnable until a scope discharges the Scope requirement.
 # Type-checked only; never called.
 def _unscoped_resource_is_not_runnable() -> None:
-    E.run_sync(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # type: ignore[arg-type]
+    E.run_sync(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # ty: ignore[invalid-argument-type]
 
 
 # release cannot have a typed error channel.
-E.acquire_and_release(E.success(1), lambda _: E.fail(ParseError("x")))  # type: ignore[arg-type]
+E.acquire_and_release(E.success(1), lambda _: E.fail(ParseError("x")))  # ty: ignore[invalid-argument-type]

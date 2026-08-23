@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import assert_type
+from typing import Literal, assert_type
 
 import effecton as E
 
@@ -13,10 +13,10 @@ class ParseError(E.EffectonError):
 
 assert_type(
     E.attempt(lambda: 1, lambda e: ParseError(str(e))),
-    E.Effect[int, ParseError],
+    E.Effect[Literal[1], ParseError],
 )
 
 # --- attempt: negative tests ---
 
 # on_error must produce an EffectonError.
-E.attempt(lambda: 1, lambda e: ValueError("x"))  # type: ignore[type-var]
+E.attempt(lambda: 1, lambda e: ValueError("x"))  # ty: ignore[invalid-argument-type]

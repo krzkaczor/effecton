@@ -14,9 +14,10 @@ if TYPE_CHECKING:
 class RequirementProvider[R = Never]:
     """Accumulates provided requirements, then discharges them in one apply.
 
-    mypy limitations dictate this design: all requirements must be
-    provided at once; otherwise the remaining requirements are not
-    subtracted correctly and collapse to object.
+    Type-checker limitations dictate this design: all requirements must
+    be provided at once; one-at-a-time provision would need R-union
+    subtraction, which inference does not solve reliably (mypy collapsed
+    the remainder to object).
     """
 
     _links: tuple[tuple[TypeForm[Any], Any], ...] = ()

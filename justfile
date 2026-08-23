@@ -1,7 +1,7 @@
 # Run type checker
 typecheck:
-    cd packages/effecton && uv run mypy .
-    cd packages/examples/skills-cli && uv run mypy .
+    cd packages/effecton && uv run ty check .
+    cd packages/examples/skills-cli && uv run ty check .
 
 # Run linter
 lint:

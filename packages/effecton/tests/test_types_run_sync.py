@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never, assert_type
+from typing import Literal, Never, assert_type
 
 import effecton as E
 
@@ -22,8 +22,10 @@ def parse(s: str) -> E.Effect[int, ParseError]:
 
 
 # --- constructors ---
+# ty infers the literal type of the argument; covariance widens it
+# wherever an Effect[int] is expected.
 
-assert_type(E.success(1), E.Effect[int])
+assert_type(E.success(1), E.Effect[Literal[1]])
 assert_type(E.fail(ParseError("x")), E.Effect[Never, ParseError])
 assert_type(E.die("boom"), E.Effect[Never])
 
@@ -43,7 +45,7 @@ assert_type(chain, E.Effect[int, ParseError | NegativeError])
 
 assert_type(
     E.fail(ParseError("x")).catch_all(lambda _: E.success(0)),
-    E.Effect[int],
+    E.Effect[Literal[0]],
 )
 
 
@@ -64,7 +66,7 @@ assert_type(E.run_sync(E.success(1)), E.Succeeded[int] | E.Failure)
 
 # --- sync: value inferred from the thunk, error channel stays Never ---
 
-assert_type(E.sync(lambda: 1), E.Effect[int])
+assert_type(E.sync(lambda: 1), E.Effect[Literal[1]])
 assert_type(E.sync(lambda: "1").flat_map(parse), E.Effect[int, ParseError])
 assert_type(E.run_sync(E.sync(lambda: 1)), E.Succeeded[int] | E.Failure)
 
@@ -76,11 +78,11 @@ def _one_arg(x: int) -> int:
 
 
 # The thunk takes no arguments.
-E.sync(_one_arg)  # type: ignore[arg-type]
+E.sync(_one_arg)  # ty: ignore[invalid-argument-type]
 
 # The value type comes from the thunk, not from the annotation.
 sync_int = E.sync(lambda: 1)
-must_be_int: E.Effect[str] = sync_int  # type: ignore[assignment]
+must_be_int: E.Effect[str] = sync_int  # ty: ignore[invalid-assignment]
 
 # --- variance: A and E are both covariant ---
 
@@ -91,11 +93,11 @@ success_fits_any_error: E.Effect[int, ParseError | NegativeError] = E.success(1)
 # --- negative tests ---
 
 # The error type must extend EffectonError.
-E.fail(ValueError("x"))  # type: ignore[type-var]
+E.fail(ValueError("x"))  # ty: ignore[invalid-argument-type]
 
 # The error channel does not narrow implicitly.
 parse_failure = E.fail(ParseError("x"))
-must_not_narrow: E.Effect[int] = parse_failure  # type: ignore[assignment]
+must_not_narrow: E.Effect[int] = parse_failure  # ty: ignore[invalid-assignment]
 
 
 def wrong_input(x: str) -> E.Effect[int]:
@@ -103,11 +105,11 @@ def wrong_input(x: str) -> E.Effect[int]:
 
 
 # The flat_map callback must accept the effect's value type.
-E.success(1).flat_map(wrong_input)  # type: ignore[arg-type]
+E.success(1).flat_map(wrong_input)  # ty: ignore[invalid-argument-type]
 
 # The map result type is not the original value type.
 mapped_str = E.success(1).map(lambda x: str(x))
-must_be_str: E.Effect[int] = mapped_str  # type: ignore[assignment]
+must_be_str: E.Effect[int] = mapped_str  # ty: ignore[invalid-assignment]
 
 # --- requirements: require adds to the R channel ---
 
@@ -145,15 +147,15 @@ assert_type(needs_db_twice, E.Effect[tuple[Db, Db], Never, Db])
 
 # --- on_exit preserves all three channels; the finalizer's value is discarded ---
 
-assert_type(E.success(1).on_exit(E.success("cleanup")), E.Effect[int])
+assert_type(E.success(1).on_exit(E.success("cleanup")), E.Effect[Literal[1]])
 assert_type(parse("1").on_exit(E.success(0)), E.Effect[int, ParseError])
 assert_type(E.require(Db).on_exit(E.success(0)), E.Effect[Db, Never, Db])
 
 # A finalizer can die (defects are unchecked).
-assert_type(E.success(1).on_exit(E.die("boom")), E.Effect[int])
+assert_type(E.success(1).on_exit(E.die("boom")), E.Effect[Literal[1]])
 
 # A finalizer can have requirements: they union into R.
-assert_type(E.success(1).on_exit(E.require(Db)), E.Effect[int, Never, Db])
+assert_type(E.success(1).on_exit(E.require(Db)), E.Effect[Literal[1], Never, Db])
 assert_type(
     E.require(Logger).on_exit(E.require(Db)), E.Effect[Logger, Never, Logger | Db]
 )
@@ -161,13 +163,13 @@ assert_type(
 # --- on_exit: negative tests ---
 
 # The finalizer cannot have a typed error channel.
-E.success(1).on_exit(E.fail(ParseError("x")))  # type: ignore[arg-type]
+E.success(1).on_exit(E.fail(ParseError("x")))  # ty: ignore[invalid-argument-type]
 
 
 # A finalizer requirement makes the effect unrunnable until provided.
 # Type-checked only; never called.
 def _finalizer_requirement_is_not_runnable() -> None:
-    E.run_sync(E.success(1).on_exit(E.require(Db)))  # type: ignore[arg-type]
+    E.run_sync(E.success(1).on_exit(E.require(Db)))  # ty: ignore[invalid-argument-type]
 
 
 # --- RequirementProvider: apply requires every requirement to be covered ---
@@ -225,23 +227,23 @@ assert_type(over_provided, E.Effect[Db])
 # An effect with unmet requirements is not runnable.
 # Type-checked only; never called.
 def _unprovided_is_not_runnable() -> None:
-    E.run_sync(needs_three)  # type: ignore[arg-type]
+    E.run_sync(needs_three)  # ty: ignore[invalid-argument-type]
 
 
 # apply rejects an effect with requirements the chain does not cover:
 # partial provision is a type error, not a subtraction.
-E.RequirementProvider().and_provide(Db)(Db("postgres://x")).apply(needs_two)  # type: ignore[arg-type]
-E.RequirementProvider().and_provide(Cache)(Cache(1)).apply(needs_three)  # type: ignore[arg-type]
+E.RequirementProvider().and_provide(Db)(Db("postgres://x")).apply(needs_two)  # ty: ignore[invalid-argument-type]
+E.RequirementProvider().and_provide(Cache)(Cache(1)).apply(needs_three)  # ty: ignore[invalid-argument-type]
 
 # Providing only requirements the effect doesn't need does not cover it.
-E.RequirementProvider().and_provide(Cache)(Cache(1)).apply(E.require(Db))  # type: ignore[arg-type]
+E.RequirementProvider().and_provide(Cache)(Cache(1)).apply(E.require(Db))  # ty: ignore[invalid-argument-type]
 
 # The implementation must match the bound requirement type: the curried
 # and_provide binds it before the implementation, at every link.
-E.RequirementProvider().and_provide(Db)(Logger("info"))  # type: ignore[arg-type]
-E.RequirementProvider().and_provide(Db)("postgres://x")  # type: ignore[arg-type]
+E.RequirementProvider().and_provide(Db)(Logger("info"))  # ty: ignore[invalid-argument-type]
+E.RequirementProvider().and_provide(Db)("postgres://x")  # ty: ignore[invalid-argument-type]
 E.RequirementProvider().and_provide(Db)(Db("postgres://x")).and_provide(Logger)(
-    Cache(1)  # type: ignore[arg-type]
+    Cache(1)  # ty: ignore[invalid-argument-type]
 )
 
 
@@ -252,8 +254,8 @@ class PgDb(Db):
 
 # --- KNOWN LIMITATION: requirement lookup uses the exact type at
 # runtime, but R's covariance lets a provided supertype cover a subtype
-# requirement statically. mypy accepts the following program (PgDb is
-# assignable to Db), yet running it dies with MissingRequirement(PgDb):
+# requirement statically. The type checker accepts the following program
+# (PgDb is assignable to Db), yet running it dies with MissingRequirement(PgDb):
 # the env holds the Db key and require(PgDb) looks up PgDb. Use exact
 # types as requirement keys.
 # Type-checked only; never called.
