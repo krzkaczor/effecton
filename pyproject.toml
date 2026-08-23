@@ -1,0 +1,36 @@
+[tool.uv.workspace]
+members = ["packages/effecton", "packages/examples/*"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.22",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "C4",     # flake8-comprehensions
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # ruff-specific rules
+    "ANN",    # flake8-annotations
+]
+ignore = ["ANN204"]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/*/tests/*" = ["ANN"]
+"packages/examples/*/tests/*" = ["ANN"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["effecton", "skills_cli"]

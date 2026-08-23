@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: Format check
+        run: uv run ruff format . --check
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy .
+        working-directory: packages/effecton
+
+      - name: Test
+        run: uv run pytest
+        working-directory: packages/effecton
+
+      - name: Type check (skills-cli)
+        run: uv run mypy .
+        working-directory: packages/examples/skills-cli
+
+      - name: Test (skills-cli)
+        run: uv run pytest
+        working-directory: packages/examples/skills-cli
