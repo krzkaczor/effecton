@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 import effecton as E
 
+
 # Custom errors need to extend EffectonError
 @dataclass(frozen=True)
 class SecretInvalidError(E.EffectonError):
@@ -19,12 +20,18 @@ class SecretInvalidError(E.EffectonError):
 
 # signature means that it succeeds with str, fails with SecretInvalidError or HttpError and it requires HttpClient
 @E.gen
-def check_secret() -> E.EffectGen[str, SecretInvalidError | HttpError, HttpClient.Protocol]:
+def check_secret() -> E.EffectGen[
+    str, SecretInvalidError | HttpError, HttpClient.Protocol
+]:
     http = yield from E.require(HttpClient.Protocol)  # requires HttpClient.Protocol
 
-    secret = yield from http.get_text("https://example.com/secret")  # secret is a str; HttpError joins the error channel
+    secret = yield from http.get_text(
+        "https://example.com/secret"
+    )  # secret is a str; HttpError joins the error channel
     if secret != "hunter2":
-        yield from E.fail(SecretInvalidError(secret))  # SecretInvalidError joins the error channel
+        yield from E.fail(
+            SecretInvalidError(secret)
+        )  # SecretInvalidError joins the error channel
     return secret
 
 
@@ -68,10 +75,6 @@ Furthermore, *agents love* strict type systems and building blocks.
 
 *Full example*: [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
 
-## Current limitations & plan forward
-
-The project standardizes on the [`ty`](https://github.com/astral-sh/ty) type checker. Requirements, error channels, and generator syntax work, with one known gap: `ty` doesn't yet thread `Effect.__iter__` through `yield from`, so the value sent back into a `@gen` program types as `Unknown` for now (canary assertions in `tests/test_types_gen.py` flag when that changes).
-
 ## Overview
 
 ### Building effects
@@ -81,10 +84,12 @@ E.success(21).map(lambda x: x * 2)  # Effect[int]
 
 E.sync(lambda: print("hi"))  # Effect[None] — defers a side effect until the effect runs
 
+
 # Custom errors need to extend EffectonError
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str
+
 
 E.fail(OopsError(msg="oops"))  # Effect[Never, OopsError]
 ```
@@ -94,10 +99,12 @@ E.fail(OopsError(msg="oops"))  # Effect[Never, OopsError]
 ```python
 E.suspend(lambda: E.fail(OopsError(msg="later")))  # Effect[Never, OopsError]
 
+
 @E.suspend
 def find_user(user_id: int) -> E.Effect[str, OopsError]:
     print("runs only when the effect is interpreted")
     return E.success(f"user-{user_id}")
+
 
 find_user(1)  # Effect[str, OopsError] — nothing printed yet
 ```
@@ -137,11 +144,11 @@ n = random.randint(1, 4)
 
 p = E.success(n).flat_map(
     lambda r: E.fail(FatalError()) if r == 2 else E.fail(RecoverableError())
-) # Effect[never, FatalError | RecoverableError]
+)  # Effect[never, FatalError | RecoverableError]
 
 p2 = p.catch_all(
     lambda e: E.success(42) if isinstance(e, RecoverableError) else E.fail(e)
-) # Effect[int, FatalError]
+)  # Effect[int, FatalError]
 ```
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
@@ -155,12 +162,11 @@ More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/m
 class Db:
     url: str
 
+
 needs_db = E.require(Db).map(lambda db: db.url)  # Effect[str, Never, Db]
 
 program = (
-    E.RequirementProvider()
-    .and_provide(Db)(Db("postgres://x"))
-    .apply(needs_db)
+    E.RequirementProvider().and_provide(Db)(Db("postgres://x")).apply(needs_db)
 )  # Effect[str] — requirements discharged, runnable
 
 E.run_sync(program)  # Succeeded("postgres://x")
@@ -184,7 +190,10 @@ class Greeting(E.ImplicitRequirement):
     def default(cls) -> Greeting:
         return Greeting("hello")
 
-E.run_sync(E.require_implicit(Greeting))  # Succeeded(Greeting("hello")) — nothing provided
+
+E.run_sync(
+    E.require_implicit(Greeting)
+)  # Succeeded(Greeting("hello")) — nothing provided
 
 # override for a sub-effect only; the env is restored when it settles
 E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
@@ -203,10 +212,12 @@ E.success(21).on_exit(E.log_info("done"))  # finalizer runs on success and failu
 
 conn = E.acquire_and_release(
     E.sync(lambda: pool.connect()),  # acquire
-    lambda c: E.sync(c.close),       # release, guaranteed by the enclosing scope
+    lambda c: E.sync(c.close),  # release, guaranteed by the enclosing scope
 )  # Effect[Connection, Never, Scope]
 
-program = E.scoped(conn.flat_map(run_queries))  # Scope discharged; close() runs when program settles
+program = E.scoped(
+    conn.flat_map(run_queries)
+)  # Scope discharged; close() runs when program settles
 ```
 
 A finalizer that dies doesn't skip the remaining finalizers; its defect surfaces in the final `Exit`.
@@ -223,8 +234,11 @@ def total(n: int) -> E.EffectGen[int, OopsError]:
     a = yield from E.success(20)  # a: int — yield from types the sent-back value
 
     if n < 0:
-        yield from E.fail(OopsError(msg="negative"))  # OopsError joins the error channel
+        yield from E.fail(
+            OopsError(msg="negative")
+        )  # OopsError joins the error channel
     return a + n
+
 
 E.run_sync(total(22))  # Succeeded(42)
 ```
@@ -241,6 +255,7 @@ More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/p
 @dataclass(frozen=True)
 class InvalidJson(E.EffectonError):
     text: str
+
 
 def parse_json(text: str) -> E.Effect[Any, InvalidJson]:
     def to_error(e: Exception) -> InvalidJson:
@@ -260,12 +275,18 @@ More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/ma
 Effecton comes with pretty logger out of the box.
 
 ```python
-E.run_sync(E.log_info("user created", 42))          # pretty-printed to stderr, no setup needed
+E.run_sync(E.log_info("user created", 42))  # pretty-printed to stderr, no setup needed
 
-program = E.annotate_logs(handle_request(), request_id="r-1")  # every log inside carries request_id=r-1
+program = E.annotate_logs(
+    handle_request(), request_id="r-1"
+)  # every log inside carries request_id=r-1
 
 captured: list[E.LogData] = []
-E.run_sync(E.provide_implicit(program, E.CurrentLoggers((E.EffectonLogger(log=captured.append),))))
+E.run_sync(
+    E.provide_implicit(
+        program, E.CurrentLoggers((E.EffectonLogger(log=captured.append),))
+    )
+)
 ```
 
 More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_logger.py), [`test_pretty_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_pretty_logger.py).

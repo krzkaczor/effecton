@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Never, assert_type
+from typing import Any, Literal, Never, assert_type
 
 import effecton as E
 
@@ -73,17 +73,15 @@ def _parameterized(base: int) -> E.EffectGen[int]:
 assert_type(_parameterized(21), E.Effect[int])
 
 
-# yield from is meant to type the sent-back value as the effect's A
-# (through Effect.__iter__), checked per expression; a bare yield types
-# as Any, so an annotation on it is trusted rather than checked.
-# ty does not thread Effect.__iter__ through yield from yet and infers
-# Unknown; unused-ignore-comment flags the ignore once it learns to.
+# yield from types the sent-back value as the effect's A (through
+# Effect.__iter__), checked per expression; a bare yield types as Any,
+# so an annotation on it is trusted rather than checked.
 
 
 @E.gen
 def _yield_from_is_typed() -> E.EffectGen[int]:
     x = yield from E.success(1)
-    assert_type(x, int)  # ty: ignore[type-assertion-failure]
+    assert_type(x, Literal[1])
     return x
 
 
@@ -117,12 +115,9 @@ def _unprovided_gen_is_not_runnable() -> None:
     E.run_sync(_needs_db())  # ty: ignore[invalid-argument-type]
 
 
-# The yield from result should be typed, not Any: a wrong annotation on
-# it should be an assignment error (contrast with the earlier bare
-# yield). ty infers Unknown here and cannot catch this yet — this line
-# starts failing the day ty types yield from, which is the signal to
-# restore the negative assertion.
+# The yield from result really is typed, not Any: a wrong annotation is
+# an assignment error (contrast with the earlier bare yield).
 @E.gen
 def _yield_from_result_is_not_any() -> E.EffectGen[int]:
-    x: str = yield from E.success(1)
+    x: str = yield from E.success(1)  # ty: ignore[invalid-assignment]
     return len(x)

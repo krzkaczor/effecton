@@ -4,8 +4,8 @@ members = ["packages/effecton", "packages/examples/*"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
-    "ruff>=0.15.22",
-    "ty>=0.0.74",
+    "ruff>=0.16.5",
+    "ty>=0.0.75",
 ]
 
 [tool.ruff]

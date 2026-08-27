@@ -40,8 +40,6 @@ class Effect[A, E: EffectonError = Never, R = Never]:
     def catch_all[B, E2: EffectonError, R2](
         self, f: Callable[[E], Effect[B, E2, R2]]
     ) -> Effect[A | B, E2, R | R2]:
-        # Explicit specialization: ty infers OnFailure's A from the handler
-        # alone (giving B), which rejects self as the first argument.
         return OnFailure[A | B, E2, R | R2](self, f)
 
     def on_exit[R2](self, finalizer: Effect[Any, Never, R2]) -> Effect[A, E, R | R2]:
