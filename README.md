@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 import effecton as E
 
+
 # Custom errors need to extend EffectonError
 @dataclass(frozen=True)
 class SecretInvalidError(E.EffectonError):
@@ -19,21 +20,23 @@ class SecretInvalidError(E.EffectonError):
 
 # signature means that it succeeds with str, fails with SecretInvalidError or HttpError and it requires HttpClient
 @E.gen
-def check_secret() -> E.EffectGen[str, SecretInvalidError | HttpError, HttpClient.Protocol]:
+def check_secret() -> E.EffectGen[
+    str, SecretInvalidError | HttpError, HttpClient.Protocol
+]:
     http = yield from E.require(HttpClient.Protocol)  # requires HttpClient.Protocol
 
-    secret = yield from http.get_text("https://example.com/secret")  # secret is a str; HttpError joins the error channel
+    secret = yield from http.get_text(
+        "https://example.com/secret"
+    )  # secret is a str; HttpError joins the error channel
     if secret != "hunter2":
-        yield from E.fail(SecretInvalidError(secret))  # SecretInvalidError joins the error channel
+        yield from E.fail(
+            SecretInvalidError(secret)
+        )  # SecretInvalidError joins the error channel
     return secret
 
 
 # program can be executed only after its requirements are provided
-program = (
-    E.RequirementProvider()
-    .and_provide(HttpClient.Protocol)(HttpClient.Live())
-    .apply(check_secret())
-)
+program = check_secret().provide(HttpClient.Protocol)(HttpClient.Live())
 
 match E.run_sync(program):
     case E.Succeeded(value):
@@ -68,12 +71,6 @@ Furthermore, *agents love* strict type systems and building blocks.
 
 *Full example*: [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
 
-## Current limitations & plan forward
-
-The whole project was designed with the `mypy` type checker in mind, which turns out might not be the best idea. Requirements, error channels, and generator syntax work, but there are some rough edges. In particular: `mypy` can't type requirement subtraction, so `RequirementProvider` needs all requirements provided at once (at the root of the program) or the `R` channel degenerates to `object`.
-
-My current plan is to standardize on the `ty` type checker. The only blocker is its lack of support for the `yield from` trick that we use.
-
 ## Overview
 
 ### Building effects
@@ -83,10 +80,12 @@ E.success(21).map(lambda x: x * 2)  # Effect[int]
 
 E.sync(lambda: print("hi"))  # Effect[None] — defers a side effect until the effect runs
 
+
 # Custom errors need to extend EffectonError
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str
+
 
 E.fail(OopsError(msg="oops"))  # Effect[Never, OopsError]
 ```
@@ -96,10 +95,12 @@ E.fail(OopsError(msg="oops"))  # Effect[Never, OopsError]
 ```python
 E.suspend(lambda: E.fail(OopsError(msg="later")))  # Effect[Never, OopsError]
 
+
 @E.suspend
 def find_user(user_id: int) -> E.Effect[str, OopsError]:
     print("runs only when the effect is interpreted")
     return E.success(f"user-{user_id}")
+
 
 find_user(1)  # Effect[str, OopsError] — nothing printed yet
 ```
@@ -139,11 +140,11 @@ n = random.randint(1, 4)
 
 p = E.success(n).flat_map(
     lambda r: E.fail(FatalError()) if r == 2 else E.fail(RecoverableError())
-) # Effect[never, FatalError | RecoverableError]
+)  # Effect[never, FatalError | RecoverableError]
 
 p2 = p.catch_all(
     lambda e: E.success(42) if isinstance(e, RecoverableError) else E.fail(e)
-) # Effect[int, FatalError]
+)  # Effect[int, FatalError]
 ```
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
@@ -157,18 +158,15 @@ More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/m
 class Db:
     url: str
 
+
 needs_db = E.require(Db).map(lambda db: db.url)  # Effect[str, Never, Db]
 
-program = (
-    E.RequirementProvider()
-    .and_provide(Db)(Db("postgres://x"))
-    .apply(needs_db)
-)  # Effect[str] — requirements discharged, runnable
+program = needs_db.provide(Db)(Db("postgres://x"))  # Effect[str] — runnable
 
 E.run_sync(program)  # Succeeded("postgres://x")
 ```
 
-`and_provide(T)(impl)` is curried so a mismatched implementation is a static error, and `apply` demands that the provided union covers the effect's whole `R`. Requirement keys are exact types: providing a base class for a subclass requirement type-checks but dies with a `MissingRequirement` defect.
+`provide(T)(impl)` subtracts the provided type from `R`, so requirements can be provided one at a time, anywhere in the program — a partially provided effect is an ordinary value carrying the remainder in `R`, and `run_sync` accepts it only once `R` reaches `Never`.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
 
@@ -186,29 +184,34 @@ class Greeting(E.ImplicitRequirement):
     def default(cls) -> Greeting:
         return Greeting("hello")
 
-E.run_sync(E.require_implicit(Greeting))  # Succeeded(Greeting("hello")) — nothing provided
+
+E.run_sync(
+    E.require_implicit(Greeting)
+)  # Succeeded(Greeting("hello")) — nothing provided
 
 # override for a sub-effect only; the env is restored when it settles
 E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
 ```
 
-`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `RequirementProvider` chain through `and_provide`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
+`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `provide` chain: `effect.provide(Greeting)(Greeting("hi"))`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
 
 More examples: [`test_implicit_requirement.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_implicit_requirement.py).
 
 ### Resource management with `on_exit` and Scope
 
-`on_exit` attaches a finalizer that runs when the effect settles, on success and failure alike. A `Scope` collects finalizers from a whole sub-tree: `acquire_and_release` registers a release for an acquired resource, and `scoped` provides the `Scope` and runs the collected finalizers in reverse order when the wrapped effect settles.
+`on_exit` attaches a finalizer that runs when the effect settles, on success and failure alike. A `Scope` collects finalizers from a whole sub-tree: `acquire_and_release` registers a release for an acquired resource, and `.scoped()` provides the `Scope` and runs the collected finalizers in reverse order when the wrapped effect settles. It composes with `provide` chains — `program.provide(Db)(db).scoped()` — and is a no-op on effects that never acquired a `Scope`, so it can uniformly terminate a chain.
 
 ```python
 E.success(21).on_exit(E.log_info("done"))  # finalizer runs on success and failure alike
 
 conn = E.acquire_and_release(
     E.sync(lambda: pool.connect()),  # acquire
-    lambda c: E.sync(c.close),       # release, guaranteed by the enclosing scope
+    lambda c: E.sync(c.close),  # release, guaranteed by the enclosing scope
 )  # Effect[Connection, Never, Scope]
 
-program = E.scoped(conn.flat_map(run_queries))  # Scope discharged; close() runs when program settles
+program = conn.flat_map(
+    run_queries
+).scoped()  # Scope discharged; close() runs when program settles
 ```
 
 A finalizer that dies doesn't skip the remaining finalizers; its defect surfaces in the final `Exit`.
@@ -225,8 +228,11 @@ def total(n: int) -> E.EffectGen[int, OopsError]:
     a = yield from E.success(20)  # a: int — yield from types the sent-back value
 
     if n < 0:
-        yield from E.fail(OopsError(msg="negative"))  # OopsError joins the error channel
+        yield from E.fail(
+            OopsError(msg="negative")
+        )  # OopsError joins the error channel
     return a + n
+
 
 E.run_sync(total(22))  # Succeeded(42)
 ```
@@ -243,6 +249,7 @@ More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/p
 @dataclass(frozen=True)
 class InvalidJson(E.EffectonError):
     text: str
+
 
 def parse_json(text: str) -> E.Effect[Any, InvalidJson]:
     def to_error(e: Exception) -> InvalidJson:
@@ -262,19 +269,25 @@ More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/ma
 Effecton comes with pretty logger out of the box.
 
 ```python
-E.run_sync(E.log_info("user created", 42))          # pretty-printed to stderr, no setup needed
+E.run_sync(E.log_info("user created", 42))  # pretty-printed to stderr, no setup needed
 
-program = E.annotate_logs(handle_request(), request_id="r-1")  # every log inside carries request_id=r-1
+program = E.annotate_logs(
+    handle_request(), request_id="r-1"
+)  # every log inside carries request_id=r-1
 
 captured: list[E.LogData] = []
-E.run_sync(E.provide_implicit(program, E.CurrentLoggers((E.EffectonLogger(log=captured.append),))))
+E.run_sync(
+    E.provide_implicit(
+        program, E.CurrentLoggers((E.EffectonLogger(log=captured.append),))
+    )
+)
 ```
 
 More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_logger.py), [`test_pretty_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_pretty_logger.py).
 
 ## Roadmap
 
-- [ ] `ty` support
+- [x] `ty` support
 - [ ] Support for async/sync code
 - [ ] Retries
 - [ ] Timeouts

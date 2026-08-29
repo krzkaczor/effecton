@@ -22,4 +22,4 @@ just all        # Run all checks
 just fix        # Fix all auto-fixable issues, then run all checks
 ```
 
-Type-level behavior (inference of value and error channels, variance) is tested in the `packages/effecton/tests/test_types_*.py` files and checked by `mypy --strict` as part of `just typecheck`.
+Type-level behavior (inference of value and error channels, variance) is tested in the `packages/effecton/tests/test_types_*.py` files and checked by `ty` as part of `just typecheck`.

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never, assert_type
+from typing import Literal, Never, assert_type
 
 import effecton as E
 
@@ -27,7 +27,7 @@ def _one_arg(x: int) -> int:
 
 # --- suspend: a thunk defers an effect, all three channels pass through ---
 
-assert_type(E.suspend(lambda: E.success(1)), E.Effect[int])
+assert_type(E.suspend(lambda: E.success(1)), E.Effect[Literal[1]])
 assert_type(E.suspend(lambda: parse("1")), E.Effect[int, ParseError])
 assert_type(E.suspend(lambda: E.require(Db)), E.Effect[Db, Never, Db])
 
@@ -55,12 +55,12 @@ assert_type(_config, E.Effect[int])
 # --- suspend: negative tests ---
 
 # The callable must return an Effect.
-E.suspend(lambda: 1)  # type: ignore[arg-type, return-value]
-E.suspend(_one_arg)  # type: ignore[arg-type]
+E.suspend(lambda: 1)  # ty: ignore[no-matching-overload]
+E.suspend(_one_arg)  # ty: ignore[no-matching-overload]
 
 # The decorator does not change the parameter types.
-_fetch("x")  # type: ignore[arg-type]
+_fetch("x")  # ty: ignore[invalid-argument-type]
 
 # The value type comes from the thunk, not from the annotation.
 suspended_int = E.suspend(lambda: E.success(1))
-must_be_int_suspended: E.Effect[str] = suspended_int  # type: ignore[assignment]
+must_be_int_suspended: E.Effect[str] = suspended_int  # ty: ignore[invalid-assignment]

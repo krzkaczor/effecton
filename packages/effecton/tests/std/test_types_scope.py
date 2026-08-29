@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never, assert_type
+from typing import Literal, Never, assert_type
 
 import effecton as E
 
@@ -51,10 +51,9 @@ _needs_scope_and_db = _needs_scope.flat_map(lambda n: E.require(Db).map(lambda _
 assert_type(_needs_scope_and_db, E.Effect[int, ParseError, E.Scope | Db])
 assert_type(E.scoped(_needs_scope_and_db), E.Effect[int, ParseError, Db])
 
-# KNOWN LIMITATION: with more than one requirement left after Scope,
-# bare scoped() inference collapses R: mypy joins the leftover union
-# members (Db, Logger, Cache) to object instead of keeping their union.
-# Use and_scoped() for that case.
+# With more than one requirement left after Scope, scoped() keeps the
+# leftover union intact (mypy used to join Db, Logger, Cache to object,
+# which forced the retired and_scoped chain for this case).
 _needs_scope_and_three = E.add_finalizer(E.success(None)).flat_map(
     lambda _: needs_three
 )
@@ -64,17 +63,17 @@ assert_type(
 )
 assert_type(
     E.scoped(_needs_scope_and_three),
-    E.Effect[tuple[Db, Logger, Cache], Never, object],
+    E.Effect[tuple[Db, Logger, Cache], Never, Db | Logger | Cache],
 )
 
-# --- and_scoped: R stays bound from the chain, so nothing collapses ---
+# --- the .scoped() method composes with .provide() chains ---
 
+# .scoped() anywhere in a provide chain; remaining provides continue.
 _runnable_scoped_three = (
-    E.RequirementProvider()
-    .and_provide(Db)(Db("postgres://x"))
-    .and_provide(Logger)(Logger("info"))
-    .and_provide(Cache)(Cache(1))
-    .and_scoped(_needs_scope_and_three)
+    _needs_scope_and_three.provide(Db)(Db("postgres://x"))
+    .provide(Logger)(Logger("info"))
+    .scoped()
+    .provide(Cache)(Cache(1))
 )
 assert_type(_runnable_scoped_three, E.Effect[tuple[Db, Logger, Cache]])
 assert_type(
@@ -82,16 +81,31 @@ assert_type(
     E.Succeeded[tuple[Db, Logger, Cache]] | E.Failure,
 )
 
-# An empty chain scopes a Scope-only effect.
+# .scoped() as a chain terminal after full provision.
 assert_type(
-    E.RequirementProvider().and_scoped(_needs_scope),
-    E.Effect[int, ParseError],
+    _needs_scope_and_three.provide(Db)(Db("postgres://x"))
+    .provide(Logger)(Logger("info"))
+    .provide(Cache)(Cache(1))
+    .scoped(),
+    E.Effect[tuple[Db, Logger, Cache]],
 )
 
-# --- and_scoped: negative tests ---
+# .scoped() on a Scope-only effect.
+assert_type(_needs_scope.scoped(), E.Effect[int, ParseError])
 
-# Requirements the chain does not cover are rejected.
-E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(_needs_scope_and_three)  # type: ignore[arg-type]
+# .scoped() on an effect that never acquired a Scope requirement is a
+# well-typed no-op (covariance; the empty runtime scope is harmless), so
+# it can uniformly terminate any provide chain.
+assert_type(parse("1").scoped(), E.Effect[int, ParseError])
+
+
+# --- .scoped() method: negative tests ---
+
+
+# .scoped() leaves non-Scope requirements in place: still unrunnable.
+# Type-checked only; never called.
+def _method_scoped_leftover_is_not_runnable() -> None:
+    E.run_sync(_needs_scope_and_three.provide(Db)(Db("pg")).scoped())  # ty: ignore[invalid-argument-type]
 
 
 # --- scoped: negative tests ---
@@ -100,27 +114,26 @@ E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(_needs_scope_and_th
 # A leftover non-Scope requirement keeps the effect unrunnable.
 # Type-checked only; never called.
 def _scoped_leftover_requirement_is_not_runnable() -> None:
-    E.run_sync(E.scoped(_needs_scope_and_db))  # type: ignore[arg-type]
+    E.run_sync(E.scoped(_needs_scope_and_db))  # ty: ignore[invalid-argument-type]
 
 
 # --- acquire_and_release: the resource's lifetime lives in the Scope channel ---
 
 _resource = E.acquire_and_release(E.success(1), lambda _: E.success(None))
-assert_type(_resource, E.Effect[int, Never, E.Scope])
-assert_type(E.scoped(_resource), E.Effect[int])
+assert_type(_resource, E.Effect[Literal[1], Never, E.Scope])
+assert_type(E.scoped(_resource), E.Effect[Literal[1]])
 
 # acquire's typed errors surface in E.
 _failing_resource = E.acquire_and_release(parse("1"), lambda _: E.success(None))
 assert_type(_failing_resource, E.Effect[int, ParseError, E.Scope])
 assert_type(E.scoped(_failing_resource), E.Effect[int, ParseError])
 
-# acquire's own requirements union with Scope; and_scoped discharges both.
+# acquire's own requirements union with Scope; provide + .scoped()
+# discharge both.
 _db_resource = E.acquire_and_release(E.require(Db), lambda _: E.success(None))
 assert_type(_db_resource, E.Effect[Db, Never, Db | E.Scope])
 assert_type(
-    E.RequirementProvider()
-    .and_provide(Db)(Db("postgres://x"))
-    .and_scoped(_db_resource),
+    _db_resource.provide(Db)(Db("postgres://x")).scoped(),
     E.Effect[Db],
 )
 
@@ -131,8 +144,8 @@ assert_type(
 # Unrunnable until a scope discharges the Scope requirement.
 # Type-checked only; never called.
 def _unscoped_resource_is_not_runnable() -> None:
-    E.run_sync(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # type: ignore[arg-type]
+    E.run_sync(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # ty: ignore[invalid-argument-type]
 
 
 # release cannot have a typed error channel.
-E.acquire_and_release(E.success(1), lambda _: E.fail(ParseError("x")))  # type: ignore[arg-type]
+E.acquire_and_release(E.success(1), lambda _: E.fail(ParseError("x")))  # ty: ignore[invalid-argument-type]

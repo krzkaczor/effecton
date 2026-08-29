@@ -53,7 +53,7 @@ Frame = FlatMap[Any, Any, Any] | OnFailure[Any, Any, Any] | RestoreEnv | OnExitF
 def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     stack: list[Frame] = []
     env: dict[TypeForm[Any], Any] = {}
-    current: Node = effect  # type: ignore[assignment]
+    current: Node = effect  # ty: ignore[invalid-assignment]
 
     while True:
         match current:
@@ -65,7 +65,7 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(_resume(current))  # type: ignore[assignment]
+                            current = finalizer.flat_map(_resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
                             current = _run_fn_or_die(item.and_then, value)
@@ -85,7 +85,7 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(_resume(current))  # type: ignore[assignment]
+                            current = finalizer.flat_map(_resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
                             continue
@@ -100,11 +100,11 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
 
             case FlatMap(first):
                 stack.append(current)
-                current = first  # type: ignore[assignment]
+                current = first  # ty: ignore[invalid-assignment]
 
             case OnFailure(first):
                 stack.append(current)
-                current = first  # type: ignore[assignment]
+                current = first  # ty: ignore[invalid-assignment]
 
             case Sync(fn):
                 try:
@@ -121,11 +121,11 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
             case ProvideRequirement(first, requirement_type, requirement_impl):
                 stack.append(RestoreEnv(env))
                 env = {**env, requirement_type: requirement_impl}
-                current = first  # type: ignore[assignment]
+                current = first  # ty: ignore[invalid-assignment]
 
             case OnExit(first, finalizer):
                 stack.append(OnExitFrame(finalizer))
-                current = first  # type: ignore[assignment]
+                current = first  # ty: ignore[invalid-assignment]
 
             case _:
                 assert_never(current)
@@ -148,7 +148,7 @@ def _default_or_die(requirement_type: TypeForm[Any]) -> Node:
 
 def _run_fn_or_die(f: Callable[[Any], Effect[Any, Any]], value: object) -> Node:
     try:
-        return f(value)  # type: ignore[return-value]
+        return f(value)  # ty: ignore[invalid-return-type]
     except Exception as e:
         return FailCause(cause=Die(defect=e))
 

@@ -7,14 +7,6 @@ from effecton.effect import Effect, EffectonError, ProvideRequirement, Require
 class ImplicitRequirement(Protocol):
     """A requirement that carries its own default value.
 
-    Extend it explicitly — ``class Foo(ImplicitRequirement)`` — so mypy
-    rejects the definition site when ``default()`` is missing or
-    mis-typed. As a Protocol, any class with a matching ``default()``
-    classmethod also qualifies structurally, but explicit inheritance is
-    the convention. Requiring one never enters the R channel: the
-    interpreter falls back to the memoized default on a miss, and
-    ordinary provision still overrides it.
-
     The default is computed once per process and shared by every later
     interpretation, so it must be an immutable value.
     """

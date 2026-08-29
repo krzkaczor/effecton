@@ -1,7 +1,7 @@
 # Run type checker
 typecheck:
-    cd packages/effecton && uv run mypy .
-    cd packages/examples/skills-cli && uv run mypy .
+    cd packages/effecton && uv run ty check .
+    cd packages/examples/skills-cli && uv run ty check .
 
 # Run linter
 lint:
@@ -15,6 +15,10 @@ lint-fix:
 format:
     uv run ruff format .
 
+# Check formatting without modifying files
+format-check:
+    uv run ruff format . --check
+
 # Run tests
 test:
     cd packages/effecton && uv run pytest -s
@@ -26,6 +30,9 @@ sync-package-files:
 
 # Run all checks (format, lint, typecheck, test)
 all: sync-package-files format lint typecheck test
+
+# Run all checks without modifying any files (CI gate)
+check: format-check lint typecheck test
 
 # Fix all auto-fixable issues, then run all checks
 fix: sync-package-files format lint-fix typecheck test

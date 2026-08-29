@@ -27,17 +27,8 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/effecton"]
 
-[tool.mypy]
-python_version = "3.14"
-strict = true
-explicit_package_bases = true
-mypy_path = "src"
-files = ["src", "tests"]
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+[tool.ty.rules]
+unused-ignore-comment = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

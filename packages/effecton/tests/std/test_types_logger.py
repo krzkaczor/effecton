@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never, assert_type
+from typing import Literal, Never, assert_type
 
 import effecton as E
 
@@ -31,15 +31,15 @@ _effectful = E.require(Db).flat_map(
 )
 assert_type(
     E.annotate_logs(_effectful, user_id=1),
-    E.Effect[int, ParseError, Db],
+    E.Effect[Literal[1], ParseError, Db],
 )
 assert_type(E.annotate_logs(E.log_info("x"), a="b"), E.Effect[None])
 
 # --- Severity excludes the ALL/NONE threshold sentinels ---
 
 # A message cannot be logged at the sentinels...
-E.CurrentLogLevel(E.LogLevel.ALL)  # type: ignore[arg-type]
-E.CurrentLogLevel(E.LogLevel.NONE)  # type: ignore[arg-type]
+E.CurrentLogLevel(E.LogLevel.ALL)  # ty: ignore[invalid-argument-type]
+E.CurrentLogLevel(E.LogLevel.NONE)  # ty: ignore[invalid-argument-type]
 
 # ...but the minimum threshold accepts them.
 assert_type(E.MinimumLogLevel(E.LogLevel.ALL), E.MinimumLogLevel)

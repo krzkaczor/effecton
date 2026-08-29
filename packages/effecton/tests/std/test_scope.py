@@ -85,31 +85,27 @@ def test_scoped_passes_other_requirements_through():
     program = E.require(Db).flat_map(
         lambda db: E.add_finalizer(E.sync(lambda: actions.append(f"close {db.url}")))
     )
-    runnable = (
-        E.RequirementProvider().and_provide(Db)(Db("pg")).apply(E.scoped(program))
-    )
+    runnable = E.scoped(program).provide(Db)(Db("pg"))
 
     assert E.run_sync(runnable) == E.Succeeded(None)
     assert actions == ["close pg"]
 
 
-def test_and_scoped_provides_scope_alongside_the_chain():
+def test_provide_chain_terminated_by_scoped_method():
     actions: list[str] = []
     program = E.require(Db).flat_map(
         lambda db: E.add_finalizer(E.sync(lambda: actions.append(f"close {db.url}")))
     )
-    p: E.Effect[None] = (
-        E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(program)
-    )
+    p: E.Effect[None] = program.provide(Db)(Db("pg")).scoped()
 
     assert E.run_sync(p) == E.Succeeded(None)
     assert actions == ["close pg"]
 
 
-def test_and_scoped_programs_are_reusable_values():
+def test_scoped_method_programs_are_reusable_values():
     actions: list[str] = []
     program = E.add_finalizer(E.sync(lambda: actions.append("f")))
-    p: E.Effect[None] = E.RequirementProvider().and_scoped(program)
+    p: E.Effect[None] = program.scoped()
 
     assert E.run_sync(p) == E.Succeeded(None)
     assert E.run_sync(p) == E.Succeeded(None)
@@ -217,9 +213,7 @@ def test_acquire_with_requirements():
         E.require(Db).map(lambda db: track(actions, f"open {db.url}", db.url)),
         lambda url: E.sync(lambda: actions.append(f"close {url}")),
     )
-    p: E.Effect[str] = (
-        E.RequirementProvider().and_provide(Db)(Db("pg")).and_scoped(resource)
-    )
+    p: E.Effect[str] = resource.provide(Db)(Db("pg")).scoped()
 
     assert E.run_sync(p) == E.Succeeded("pg")
     assert actions == ["open pg", "close pg"]
