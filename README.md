@@ -287,7 +287,7 @@ More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/mai
 
 ## Roadmap
 
-- [ ] `ty` support
+- [x] `ty` support
 - [ ] Support for async/sync code
 - [ ] Retries
 - [ ] Timeouts
