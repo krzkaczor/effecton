@@ -56,7 +56,7 @@ def _needs_db() -> E.EffectGen[str, Never, Db]:
 
 assert_type(_needs_db(), E.Effect[str, Never, Db])
 assert_type(
-    E.RequirementProvider().and_provide(Db)(Db("postgres://x")).apply(_needs_db()),
+    _needs_db().provide(Db)(Db("postgres://x")),
     E.Effect[str],
 )
 

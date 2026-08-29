@@ -194,85 +194,6 @@ def test_exception_die_is_not_caught_by_downstream_catch_all():
     assert calls == []
 
 
-def test_require_and_provide_requirement():
-    p = E.require(str).map(lambda s: s.upper())
-
-    provided = E.RequirementProvider().and_provide(str)("Kris").apply(p)
-
-    assert E.run_sync(provided) == E.Succeeded("KRIS")
-
-
-def test_two_requirements_provided_in_one_chain():
-    r1 = E.require(str).map(lambda s: s.upper())
-    r2 = E.require(int).map(lambda i: i * 10)
-
-    p = r1.flat_map(lambda s: r2.map(lambda i: f"{s}{i}!"))
-
-    provided = (
-        E.RequirementProvider().and_provide(str)("Kris").and_provide(int)(5).apply(p)
-    )
-
-    assert E.run_sync(provided) == E.Succeeded("KRIS50!")
-
-
-def test_three_requirements_provided_in_one_chain():
-    r1 = E.require(str).map(lambda s: s.upper())
-    r2 = E.require(int).map(lambda i: i * 10)
-    r3 = E.require(float).map(lambda f: f / 2)
-
-    p = r1.flat_map(lambda s: r2.flat_map(lambda i: r3.map(lambda f: f"{s}{i}|{f}!")))
-
-    provided = (
-        E.RequirementProvider()
-        .and_provide(str)("Kris")
-        .and_provide(int)(5)
-        .and_provide(float)(1.0)
-        .apply(p)
-    )
-
-    assert E.run_sync(provided) == E.Succeeded("KRIS50|0.5!")
-
-
-def test_provide_is_scoped_to_the_applied_effect():
-    scoped = E.RequirementProvider().and_provide(str)("inner").apply(E.require(str))
-    p = scoped.flat_map(
-        lambda first: E.require(str).map(lambda second: (first, second))
-    )
-
-    provided = E.RequirementProvider().and_provide(str)("outer").apply(p)
-
-    assert E.run_sync(provided) == E.Succeeded(("inner", "outer"))
-
-
-def test_inner_provide_shadows_outer_within_scope():
-    inner = E.RequirementProvider().and_provide(str)("inner").apply(E.require(str))
-    p = E.require(str).flat_map(lambda outer: inner.map(lambda i: (outer, i)))
-
-    provided = E.RequirementProvider().and_provide(str)("outer").apply(p)
-
-    assert E.run_sync(provided) == E.Succeeded(("outer", "inner"))
-
-
-def test_provide_scope_unwinds_on_typed_failure():
-    failing_scoped = (
-        E.RequirementProvider()
-        .and_provide(str)("inner")
-        .apply(E.require(str).flat_map(lambda _: E.fail(OopsError("boom"))))
-    )
-    p = failing_scoped.catch_all(lambda _: E.require(str))
-
-    provided = E.RequirementProvider().and_provide(str)("outer").apply(p)
-
-    assert E.run_sync(provided) == E.Succeeded("outer")
-
-
-def test_missing_requirement_dies():
-    # Only reachable outside the typed API (pinned as a type error here).
-    result = E.run_sync(E.require(str))  # ty: ignore[invalid-argument-type]
-
-    assert result == E.Failure(cause=E.Die(defect=E.MissingRequirement(str)))
-
-
 def test_sync_success():
     p = E.sync(lambda: 42)
 
@@ -466,7 +387,7 @@ def test_finalizer_requirements_are_provided():
     fin = E.require(str).map(lambda s: actions.append(f"closed:{s}"))
     p = E.success(1).on_exit(fin)
 
-    provided = E.RequirementProvider().and_provide(str)("conn").apply(p)
+    provided = p.provide(str)("conn")
 
     assert E.run_sync(provided) == E.Succeeded(1)
     assert actions == ["closed:conn"]
@@ -476,14 +397,10 @@ def test_finalizer_runs_within_its_provide_scope():
     actions: list[str] = []
 
     fin = E.require(str).map(lambda s: actions.append(s))
-    inner = (
-        E.RequirementProvider()
-        .and_provide(str)("inner")
-        .apply(E.success(1).on_exit(fin))
-    )
+    inner = E.success(1).on_exit(fin).provide(str)("inner")
     p = inner.flat_map(lambda x: E.require(str).map(lambda s: (x, s)))
 
-    provided = E.RequirementProvider().and_provide(str)("outer").apply(p)
+    provided = p.provide(str)("outer")
 
     assert E.run_sync(provided) == E.Succeeded((1, "outer"))
     assert actions == ["inner"]

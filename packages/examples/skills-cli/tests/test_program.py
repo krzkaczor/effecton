@@ -25,11 +25,10 @@ def wire(
     fs: FileSystem.Test, http: HttpClient.Test, terminal: Terminal.Test, url: str = URL
 ) -> tuple[list[E.LogData], E.Effect[str, errors.InstallError]]:
     provided = (
-        E.RequirementProvider()
-        .and_provide(FileSystem.Protocol)(fs)
-        .and_provide(HttpClient.Protocol)(http)
-        .and_provide(Terminal.Protocol)(terminal)
-        .apply(install_skill(url, HOME))
+        install_skill(url, HOME)
+        .provide(FileSystem.Protocol)(fs)
+        .provide(HttpClient.Protocol)(http)
+        .provide(Terminal.Protocol)(terminal)
     )
     entries, loggers = capture()
     return entries, E.provide_implicit(provided, loggers)

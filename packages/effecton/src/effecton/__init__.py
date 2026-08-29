@@ -18,7 +18,6 @@ from effecton.implicit_requirement import (
     provide_implicit,
     require_implicit,
 )
-from effecton.provide import RequirementProvider
 from effecton.run_sync import MissingRequirement, run_sync
 from effecton.std.logger import (
     CurrentLogAnnotations,
@@ -61,7 +60,6 @@ __all__ = [
     "MinimumLogLevel",
     "MissingRequirement",
     "PrettyFormatter",
-    "RequirementProvider",
     "Scope",
     "Severity",
     "Succeeded",

@@ -87,7 +87,7 @@ def test_requirements_inside_gen():
         x = yield from E.success(2)
         return db.answer * x
 
-    provided = E.RequirementProvider().and_provide(Db)(Db(answer=21)).apply(program())
+    provided = program().provide(Db)(Db(answer=21))
 
     assert E.run_sync(provided) == E.Succeeded(value=42)
 
@@ -152,7 +152,7 @@ def test_bare_yield_still_works():
         x: int = yield E.success(2)
         return db.answer * x
 
-    provided = E.RequirementProvider().and_provide(Db)(Db(answer=21)).apply(program())
+    provided = program().provide(Db)(Db(answer=21))
 
     assert E.run_sync(provided) == E.Succeeded(value=42)
 

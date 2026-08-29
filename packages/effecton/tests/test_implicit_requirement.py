@@ -68,12 +68,8 @@ def test_nested_overrides_shadow():
     )
 
 
-def test_override_via_requirement_provider():
-    program = (
-        E.RequirementProvider()
-        .and_provide(Greeting)(Greeting("provided"))
-        .apply(E.require_implicit(Greeting))
-    )
+def test_override_via_provide():
+    program = E.require_implicit(Greeting).provide(Greeting)(Greeting("provided"))
 
     assert E.run_sync(program) == E.Succeeded(value=Greeting("provided"))
 

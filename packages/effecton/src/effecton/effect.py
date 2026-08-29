@@ -1,8 +1,12 @@
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
-from typing import Any, Literal, Never, final
+from typing import TYPE_CHECKING, Any, Literal, Never, final
 
 from typing_extensions import TypeForm
+
+if TYPE_CHECKING:
+    from effecton.provide import ProvideBinder
+    from effecton.std.scope import Scope
 
 
 @dataclass(frozen=True)
@@ -45,14 +49,24 @@ class Effect[A, E: EffectonError = Never, R = Never]:
     def on_exit[R2](self, finalizer: Effect[Any, Never, R2]) -> Effect[A, E, R | R2]:
         return OnExit(self, finalizer)
 
+    def provide[T](self, requirement_type: TypeForm[T]) -> ProvideBinder[A, E, R, T]:
+        from effecton.provide import ProvideBinder
+
+        return ProvideBinder(effect=self, requirement_type=requirement_type)
+
+    def scoped[A2, E2: EffectonError, R2 = Never](
+        self: Effect[A2, E2, Scope | R2],
+    ) -> Effect[A2, E2, R2]:
+        from effecton.std.scope import scoped
+
+        return scoped(self)
+
     def __iter__(self) -> Generator[Effect[A, E, R], Any, A]:
         """Make ``x = yield from effect`` infer ``x`` as A inside @gen.
 
         A bare ``yield`` types as the generator's single send type (Any).
         ``yield from`` takes this method's return type parameter instead,
         so the value the interpreter sends back is typed per expression.
-        The send channel is Any, not A: a contravariant slot would make
-        ty's inferred variance for A invariant, breaking covariance.
         """
         return (yield self)
 

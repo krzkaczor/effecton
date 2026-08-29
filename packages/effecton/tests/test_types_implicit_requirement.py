@@ -76,12 +76,12 @@ assert_type(
 # Only implicit-requirement values can be provided this way.
 E.provide_implicit(E.success(1), Db("pg"))  # ty: ignore[invalid-argument-type]
 
-# --- RequirementProvider: implicit overrides ride along with plain provisions ---
+# --- provide: implicit overrides ride along with plain provisions ---
+# The Greeting provision is an over-provision no-op in R (implicit
+# requirements never enter it) but still overrides the default at
+# runtime.
 
-_runnable = (
-    E.RequirementProvider()
-    .and_provide(Db)(Db("postgres://x"))
-    .and_provide(Greeting)(Greeting("provided"))
-    .apply(_mixed)
+_runnable = _mixed.provide(Db)(Db("postgres://x")).provide(Greeting)(
+    Greeting("provided")
 )
 assert_type(_runnable, E.Effect[tuple[Greeting, Db]])

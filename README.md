@@ -36,11 +36,7 @@ def check_secret() -> E.EffectGen[
 
 
 # program can be executed only after its requirements are provided
-program = (
-    E.RequirementProvider()
-    .and_provide(HttpClient.Protocol)(HttpClient.Live())
-    .apply(check_secret())
-)
+program = check_secret().provide(HttpClient.Protocol)(HttpClient.Live())
 
 match E.run_sync(program):
     case E.Succeeded(value):
@@ -165,14 +161,12 @@ class Db:
 
 needs_db = E.require(Db).map(lambda db: db.url)  # Effect[str, Never, Db]
 
-program = (
-    E.RequirementProvider().and_provide(Db)(Db("postgres://x")).apply(needs_db)
-)  # Effect[str] — requirements discharged, runnable
+program = needs_db.provide(Db)(Db("postgres://x"))  # Effect[str] — runnable
 
 E.run_sync(program)  # Succeeded("postgres://x")
 ```
 
-`and_provide(T)(impl)` is curried so a mismatched implementation is a static error, and `apply` demands that the provided union covers the effect's whole `R`. Requirement keys are exact types: providing a base class for a subclass requirement type-checks but dies with a `MissingRequirement` defect.
+`provide(T)(impl)` subtracts the provided type from `R`, so requirements can be provided one at a time, anywhere in the program — a partially provided effect is an ordinary value carrying the remainder in `R`, and `run_sync` accepts it only once `R` reaches `Never`.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
 
@@ -199,13 +193,13 @@ E.run_sync(
 E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
 ```
 
-`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `RequirementProvider` chain through `and_provide`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
+`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `provide` chain: `effect.provide(Greeting)(Greeting("hi"))`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
 
 More examples: [`test_implicit_requirement.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_implicit_requirement.py).
 
 ### Resource management with `on_exit` and Scope
 
-`on_exit` attaches a finalizer that runs when the effect settles, on success and failure alike. A `Scope` collects finalizers from a whole sub-tree: `acquire_and_release` registers a release for an acquired resource, and `scoped` provides the `Scope` and runs the collected finalizers in reverse order when the wrapped effect settles.
+`on_exit` attaches a finalizer that runs when the effect settles, on success and failure alike. A `Scope` collects finalizers from a whole sub-tree: `acquire_and_release` registers a release for an acquired resource, and `.scoped()` provides the `Scope` and runs the collected finalizers in reverse order when the wrapped effect settles. It composes with `provide` chains — `program.provide(Db)(db).scoped()` — and is a no-op on effects that never acquired a `Scope`, so it can uniformly terminate a chain.
 
 ```python
 E.success(21).on_exit(E.log_info("done"))  # finalizer runs on success and failure alike
@@ -215,9 +209,9 @@ conn = E.acquire_and_release(
     lambda c: E.sync(c.close),  # release, guaranteed by the enclosing scope
 )  # Effect[Connection, Never, Scope]
 
-program = E.scoped(
-    conn.flat_map(run_queries)
-)  # Scope discharged; close() runs when program settles
+program = conn.flat_map(
+    run_queries
+).scoped()  # Scope discharged; close() runs when program settles
 ```
 
 A finalizer that dies doesn't skip the remaining finalizers; its defect surfaces in the final `Exit`.

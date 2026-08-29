@@ -27,11 +27,10 @@ from skills_cli.program import install_skill
 
 def main(skill_url: str) -> None:
     runnable = (
-        E.RequirementProvider()
-        .and_provide(FileSystem.Protocol)(FileSystem.Live())
-        .and_provide(HttpClient.Protocol)(HttpClient.Live())
-        .and_provide(Terminal.Protocol)(Terminal.Live())
-        .apply(install_skill(skill_url, Path.home()))
+        install_skill(skill_url, Path.home())
+        .provide(FileSystem.Protocol)(FileSystem.Live())
+        .provide(HttpClient.Protocol)(HttpClient.Live())
+        .provide(Terminal.Protocol)(Terminal.Live())
     )
 
     match E.run_sync(runnable):
