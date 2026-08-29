@@ -6,7 +6,21 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.5",
     "ty>=0.0.75",
+    "uv-tasks>=0.1.1",
 ]
+
+[tool.ut.tasks]
+format = "ruff format ."
+format-check = "ruff format . --check"
+lint = "ruff check ."
+lint-fix = "ruff check . --fix --unsafe-fixes"
+typecheck = "ut run -w typecheck"
+test = "ut run -w test"
+# Copy root README/LICENSE into the published package (hatchling can't reference parent paths)
+sync-package-files = "cp README.md LICENSE packages/effecton/"
+all = ["ut sync-package-files", "ut format", "ut lint", "ut typecheck", "ut test"]
+check = ["ut format-check", "ut lint", "ut typecheck", "ut test"]
+fix = ["ut sync-package-files", "ut format", "ut lint-fix", "ut typecheck", "ut test"]
 
 [tool.ruff]
 line-length = 88

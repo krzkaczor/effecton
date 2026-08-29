@@ -28,6 +28,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/skills_cli"]
 
+[tool.ut.tasks]
+test = "pytest"
+typecheck = "ty check ."
+
 [tool.ty.rules]
 unused-ignore-comment = "error"
 
