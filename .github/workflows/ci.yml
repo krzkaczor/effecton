@@ -24,5 +24,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-packages
 
-      - name: Check
-        run: just check
+      - name: Format check
+        run: just format-check
+
+      - name: Lint
+        run: just lint
+
+      - name: Type check
+        run: just typecheck
+
+      - name: Test
+        run: just test
