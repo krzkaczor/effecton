@@ -6,8 +6,8 @@ effecton is a typed effect system for Python inspired by Effect-TS: sync-only, z
 
 Verify every change as follows:
 
-- `just fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
-- Run everything through `just` or `uv run`, never through bare `python3`.
+- `uv run ut fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
+- Run everything through `uv run` (tasks via `uv run ut <task>`, defined in `[tool.ut.tasks]`), never through bare `python3`.
 - Type behavior is pinned in `tests/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
 
 ## Naming and API design

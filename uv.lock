@@ -13,6 +13,7 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.5" },
     { name = "ty", specifier = ">=0.0.75" },
+    { name = "uv-tasks", specifier = ">=0.1.1" },
 ]
 
 [[package]]
@@ -352,4 +353,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5", size = 113555 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8", size = 45571 },
+]
+
+[[package]]
+name = "uv-tasks"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/1f/cbe662a988401be4c7cc310463e653d7d40db9e85aa2c0908e5c4f703185/uv_tasks-0.1.1.tar.gz", hash = "sha256:78bbf5ff40d9088d099ea2b50385c0fc0d40143a7beb2856ba9da71b6eeaef2f", size = 28025 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0a/38/80dc1178b3f031f046595b7119a289a9a7becb4c53061646575c9b31abcc/uv_tasks-0.1.1-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:0992d63f79c47661b84bfde7884459d4b8c77d373ac66e57a032891ff3aadde5", size = 1539374 },
+    { url = "https://files.pythonhosted.org/packages/43/34/e28436e1c08a225f4fb7c12091dd9822790a6001239d791c45b330c04154/uv_tasks-0.1.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:86354f051584634ec187bd7c4f9fc76b1a6e98d4c3c3e6495dfb776a88709163", size = 1476170 },
+    { url = "https://files.pythonhosted.org/packages/0c/cc/8ff2b6871f9e322f668737d852d2da9ef2f1204d8cca6e15359a079ab9f2/uv_tasks-0.1.1-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4c59d9ca3699e1794e9a3442dfb303a186659e708c9c3a10c621c72b7e327ba6", size = 1531861 },
+    { url = "https://files.pythonhosted.org/packages/d6/22/5e511b9f46ed9467e87520da869784cf36783dee5245f823ce1a6b77cf8f/uv_tasks-0.1.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6bf2cf2e68b087b3e0ed63620bbfb8ebc6cf838c79b1810a8b21633777e03051", size = 1629668 },
 ]
