@@ -4,14 +4,37 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import effecton as E
-from skills_cli.errors import (
-    MalformedSkillPath,
-    NotASkillFile,
-    ParseUrlError,
-    UnsupportedHost,
-)
 
 ALLOWED_HOSTS = {"github.com", "www.github.com", "raw.githubusercontent.com"}
+
+
+@dataclass(frozen=True)
+class UnsupportedHost(E.EffectonError):
+    url: str
+    host: str
+
+    def __str__(self) -> str:
+        return f"Unsupported host {self.host!r} in {self.url}"
+
+
+@dataclass(frozen=True)
+class NotASkillFile(E.EffectonError):
+    url: str
+
+    def __str__(self) -> str:
+        return f"{self.url} doesn't point to a SKILL.md"
+
+
+@dataclass(frozen=True)
+class MalformedSkillPath(E.EffectonError):
+    url: str
+    reason: str
+
+    def __str__(self) -> str:
+        return f"Couldn't parse {self.url}: {self.reason}"
+
+
+type ParseUrlError = UnsupportedHost | NotASkillFile | MalformedSkillPath
 
 
 @dataclass(frozen=True)

@@ -1,10 +1,19 @@
 """Inspect and rewrite a skill's YAML frontmatter."""
 
+from dataclasses import dataclass
+
 import frontmatter
 import yaml
 
 import effecton as E
-from skills_cli.errors import FrontmatterParseError
+
+
+@dataclass(frozen=True)
+class FrontmatterParseError(E.EffectonError):
+    message: str
+
+    def __str__(self) -> str:
+        return f"Invalid skill frontmatter: {self.message}"
 
 
 def _to_error(e: Exception) -> FrontmatterParseError:

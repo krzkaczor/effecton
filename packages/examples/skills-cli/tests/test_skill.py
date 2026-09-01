@@ -1,7 +1,7 @@
 import frontmatter
 
 import effecton as E
-from skills_cli import errors, skill
+from skills_cli import skill
 
 PLAIN_BODY = "---\nname: my-skill\n---\n\nsome body"
 
@@ -21,7 +21,7 @@ def test_parse_fails_on_invalid_yaml():
 
     assert isinstance(result, E.Failure)
     assert isinstance(result.cause, E.Fail)
-    assert isinstance(result.cause.error, errors.FrontmatterParseError)
+    assert isinstance(result.cause.error, skill.FrontmatterParseError)
 
 
 def test_detects_a_disabled_skill():
