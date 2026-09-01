@@ -4,6 +4,7 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
+    "changesets",
     "effecton",
     "skills-cli",
 ]
@@ -45,6 +46,31 @@ sdist = { url = "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl", hash = "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775", size = 136983 },
 ]
+
+[[package]]
+name = "changesets"
+version = "0.1.0"
+source = { editable = "packages/changesets" }
+dependencies = [
+    { name = "effecton" },
+    { name = "python-frontmatter" },
+    { name = "typer" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "types-pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "effecton", editable = "packages/effecton" },
+    { name = "python-frontmatter", specifier = ">=1.1" },
+    { name = "typer", specifier = ">=0.15" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "types-pyyaml", specifier = ">=6.0" }]
 
 [[package]]
 name = "colorama"

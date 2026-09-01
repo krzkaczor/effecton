@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["packages/effecton", "packages/examples/*"]
+members = ["packages/effecton", "packages/changesets", "packages/examples/*"]
 
 [dependency-groups]
 dev = [
@@ -47,4 +47,4 @@ ignore = ["ANN204"]
 "packages/examples/*/tests/*" = ["ANN"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["effecton", "skills_cli"]
+known-first-party = ["changesets", "effecton", "skills_cli"]
