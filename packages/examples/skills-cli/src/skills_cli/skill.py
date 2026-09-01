@@ -16,12 +16,6 @@ class FrontmatterParseError(E.EffectonError):
         return f"Invalid skill frontmatter: {self.message}"
 
 
-def _to_error(e: Exception) -> FrontmatterParseError:
-    if isinstance(e, yaml.YAMLError):
-        return FrontmatterParseError(message=str(e))
-    raise e
-
-
 def parse(body: str) -> E.Effect[frontmatter.Post, FrontmatterParseError]:
     return E.attempt(lambda: frontmatter.loads(body), _to_error)
 
@@ -38,3 +32,9 @@ def disable_model_invocation(
         return frontmatter.dumps(post)
 
     return E.attempt(go, _to_error)
+
+
+def _to_error(e: Exception) -> FrontmatterParseError:
+    if isinstance(e, yaml.YAMLError):
+        return FrontmatterParseError(message=str(e))
+    raise e

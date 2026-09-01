@@ -34,18 +34,6 @@ class AmbiguousVersionLine(E.EffectonError):
 type VersionLineError = MissingVersionLine | AmbiguousVersionLine
 
 
-def _match_version_line(
-    path: Path, text: str
-) -> E.Effect[re.Match[str], VersionLineError]:
-    matches = list(_VERSION_LINE.finditer(text))
-    if not matches:
-        return E.fail(MissingVersionLine(path=path))
-    if len(matches) > 1:
-        return E.fail(AmbiguousVersionLine(path=path))
-
-    return E.success(matches[0])
-
-
 def read_version(path: Path, text: str) -> E.Effect[str, VersionLineError]:
     return _match_version_line(path, text).map(lambda m: m.group("version"))
 
@@ -58,3 +46,15 @@ def replace_version(
         return text[: matched.start()] + line + text[matched.end() :]
 
     return _match_version_line(path, text).map(splice)
+
+
+def _match_version_line(
+    path: Path, text: str
+) -> E.Effect[re.Match[str], VersionLineError]:
+    matches = list(_VERSION_LINE.finditer(text))
+    if not matches:
+        return E.fail(MissingVersionLine(path=path))
+    if len(matches) > 1:
+        return E.fail(AmbiguousVersionLine(path=path))
+
+    return E.success(matches[0])

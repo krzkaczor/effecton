@@ -141,36 +141,6 @@ class CurrentLogAnnotations(ImplicitRequirement):
         return CurrentLogAnnotations({})
 
 
-@gen
-def _log_with_level(
-    level: Severity | None, message: tuple[object, ...]
-) -> EffectGen[None]:
-    minimum = yield from require_implicit(MinimumLogLevel)
-    log_level = (
-        level
-        if level is not None
-        else (yield from require_implicit(CurrentLogLevel)).level
-    )
-
-    if log_level_order(log_level) < log_level_order(minimum.level):
-        return None
-
-    loggers = yield from require_implicit(CurrentLoggers)
-    annotations = yield from require_implicit(CurrentLogAnnotations)
-
-    date = datetime.now()
-    for logger in loggers.loggers:
-        logger.log(
-            LogData(
-                message=message,
-                log_level=log_level,
-                date=date,
-                annotations=annotations.annotations,
-            )
-        )
-    return None
-
-
 def log(*message: object) -> Effect[None]:
     return _log_with_level(None, message)
 
@@ -212,3 +182,33 @@ def annotate_logs[A, E: EffectonError, R](
             ),
         )
     )
+
+
+@gen
+def _log_with_level(
+    level: Severity | None, message: tuple[object, ...]
+) -> EffectGen[None]:
+    minimum = yield from require_implicit(MinimumLogLevel)
+    log_level = (
+        level
+        if level is not None
+        else (yield from require_implicit(CurrentLogLevel)).level
+    )
+
+    if log_level_order(log_level) < log_level_order(minimum.level):
+        return None
+
+    loggers = yield from require_implicit(CurrentLoggers)
+    annotations = yield from require_implicit(CurrentLogAnnotations)
+
+    date = datetime.now()
+    for logger in loggers.loggers:
+        logger.log(
+            LogData(
+                message=message,
+                log_level=log_level,
+                date=date,
+                annotations=annotations.annotations,
+            )
+        )
+    return None
