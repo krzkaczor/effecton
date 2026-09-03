@@ -72,7 +72,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           uv run changeset notes effecton > /tmp/notes.md
+          # --target pins the tag to this run's commit; the default is the
+          # branch head, which may already be a later push than the one the
+          # publish job builds from.
           gh release create "effecton@${{ steps.released.outputs.version }}" \
+            --target "$GITHUB_SHA" \
             --title "effecton@${{ steps.released.outputs.version }}" \
             --notes-file /tmp/notes.md
 
