@@ -26,3 +26,13 @@ uv run ut list       # List workspace members and their tasks
 `typecheck` and `test` fan out across every workspace package; run them from inside a package (for example `packages/effecton/`) to check just that package.
 
 Type-level behavior (inference of value and error channels, variance) is tested in the `packages/effecton/tests/test_types_*.py` files and checked by `ty` as part of `uv run ut typecheck`.
+
+## Changesets
+
+Every user-facing change to a released package needs a changeset — a small markdown file in `.changeset/` that records the bump level and a changelog entry. Create one with:
+
+```bash
+uv run changeset add --package effecton --bump patch --message "Fix X in Y"
+```
+
+Use `major`, `minor`, or `patch` for `--bump`; the `--message` becomes the bullet in the package's CHANGELOG. Commit the generated `.changeset/*.md` file with your PR. After it merges, the release workflow collects pending changesets into a "Version Packages" PR, and merging that bumps versions, updates changelogs, tags, and publishes. `uv run changeset status` shows what's pending. See `packages/changesets/README.md` for details.
