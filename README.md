@@ -1,5 +1,6 @@
 # Effecton
 
+[![PyPI](https://img.shields.io/pypi/v/effecton?logo=pypi&logoColor=white)](https://pypi.org/project/effecton/)
 [![Discord](https://img.shields.io/badge/Discord-join%20chat-5865F2?logo=discord&logoColor=white)](https://discord.gg/fNhY7AxMyh)
 
 A typed effect system for Python, inspired by [Effect-TS](https://effect.website/). Early stage and experimental.
