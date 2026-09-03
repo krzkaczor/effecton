@@ -1,6 +1,6 @@
 # effecton agent guide
 
-effecton is a typed effect system for Python inspired by Effect-TS: sync-only, zero runtime dependencies, Python 3.14, typechecked with ty. Kernel modules live in `packages/effecton/src/effecton/`, std services in `packages/effecton/src/effecton/std/`, and tests in `packages/effecton/tests/`.
+effecton is a typed effect system for Python inspired by Effect-TS: sync-only, zero runtime dependencies, Python 3.14, typechecked with ty. Kernel modules live in `packages/effecton/src/effecton/`, std services in `packages/effecton/src/effecton/std/`, and tests collocated next to the module they cover as `test_<module>.py` (the release workflow deletes every `test_*.py` under `src/` before building the published package).
 
 ## Verification
 
@@ -8,7 +8,7 @@ Verify every change as follows:
 
 - `uv run ut fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
 - Run everything through `uv run` (tasks via `uv run ut <task>`, defined in `[tool.ut.tasks]`), never through bare `python3`.
-- Type behavior is pinned in `tests/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
+- Type behavior is pinned in `src/effecton/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
 
 ## Naming and API design
 
@@ -29,12 +29,12 @@ Follow these conventions in all effecton code:
 - **Use `yield from` over bare `yield`** in `@gen` programs. `Effect.__iter__` types the sent-back value per expression; bare `yield` types as `Any`.
 - **Nest helpers inside their only caller**, closing over locals. Reserve module-level private helpers for logic that multiple functions share.
 - **Order functions by importance**: public or more important functions come before the private or less important ones they call, so a module's entry point reads first and details follow (e.g. `add_changeset` before `pick_name`). Forward references inside function bodies make this safe.
-- **ty inference notes**: literal arguments stay literal (`E.success(1)` is `Effect[Literal[1]]`; covariance widens it where an `Effect[int]` is expected), and constructor calls whose return type the signature widens may need explicit specialization because ty solves class type parameters from the arguments alone — see `catch_all` in `src/effecton/effect.py`. Keep every type parameter of `Effect` out of contravariant slots in its own methods (e.g. the `__iter__` send channel is `Any`, not `A`, and explicitly-annotated `self` parameters use fresh method-level typevars), or ty's variance inference turns the parameter invariant; when two classes reference each other (`Effect` ↔ `ProvideBinder`), inference gives up entirely and variance must be declared through old-style TypeVars (suppress UP046). R-subtraction (`provide`, `scoped`) only solves when at most one typevar is free in the union match: pin the subtracted type first (a class parameter on the binder, or a concrete class like `Scope`) and default the remainder (`[R2 = Never]`) so the vacuous case lands on `Never` instead of `Unknown`; in `ProvideBinder.__call__`'s self annotation the class-scoped `T` must be reused as-is — re-binding it as a method typevar recreates the unsolvable two-typevar match. `provide` stays curried (`provide(T)(impl)`, never `provide(T, impl)`) because a one-call form lets a mismatched impl silently join into `T` and subtract too much, instead of erroring. See `src/effecton/provide.py` and `tests/repro_ty_union_subtraction.py`.
+- **ty inference notes**: literal arguments stay literal (`E.success(1)` is `Effect[Literal[1]]`; covariance widens it where an `Effect[int]` is expected), and constructor calls whose return type the signature widens may need explicit specialization because ty solves class type parameters from the arguments alone — see `catch_all` in `src/effecton/effect.py`. Keep every type parameter of `Effect` out of contravariant slots in its own methods (e.g. the `__iter__` send channel is `Any`, not `A`, and explicitly-annotated `self` parameters use fresh method-level typevars), or ty's variance inference turns the parameter invariant; when two classes reference each other (`Effect` ↔ `ProvideBinder`), inference gives up entirely and variance must be declared through old-style TypeVars (suppress UP046). R-subtraction (`provide`, `scoped`) only solves when at most one typevar is free in the union match: pin the subtracted type first (a class parameter on the binder, or a concrete class like `Scope`) and default the remainder (`[R2 = Never]`) so the vacuous case lands on `Never` instead of `Unknown`; in `ProvideBinder.__call__`'s self annotation the class-scoped `T` must be reused as-is — re-binding it as a method typevar recreates the unsolvable two-typevar match. `provide` stays curried (`provide(T)(impl)`, never `provide(T, impl)`) because a one-call form lets a mismatched impl silently join into `T` and subtract too much, instead of erroring. See `src/effecton/provide.py`.
 
 ## Blank lines
 
 Use blank lines deliberately:
 
-- **Tests follow the Arrange-Act-Assert structure** with a single blank line between the three blocks; `tests/std/test_scope.py` is the exemplar.
+- **Tests follow the Arrange-Act-Assert structure** with a single blank line between the three blocks; `src/effecton/std/test_scope.py` is the exemplar.
 - **`@gen` generator bodies** put requirement acquisition (`yield from require(...)` or `require_implicit(...)`) at the top, followed by a blank line, then the rest. Never reorder requirement acquisition across guards only for grouping.
 - Use exactly one blank line: ruff format collapses runs of two or more and strips blanks that directly follow `def`.

@@ -92,6 +92,9 @@ jobs:
         uses: astral-sh/setup-uv@v4
       - name: Set up Python
         run: uv python install
+      - name: Remove tests from the published package
+        run: find packages/effecton/src -name 'test_*.py' -delete
+
       - name: Build and publish effecton to PyPI
         run: |
           uv build --package effecton

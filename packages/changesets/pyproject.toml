@@ -34,6 +34,5 @@ typecheck = "ty check ."
 unused-ignore-comment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-# importlib mode lets the per-command dirs share the test_program.py basename.
-addopts = "-qs --import-mode=importlib"
+testpaths = ["src"]
+addopts = "-q"

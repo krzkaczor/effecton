@@ -106,7 +106,7 @@ def find_user(user_id: int) -> E.Effect[str, OopsError]:
 find_user(1)  # Effect[str, OopsError] — nothing printed yet
 ```
 
-More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py), [`test_suspend.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_suspend.py).
+More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py), [`test_suspend.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_suspend.py).
 
 ### Running effects
 
@@ -120,7 +120,7 @@ match E.run_sync(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
         ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions
 ```
 
-More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
+More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
 
 ### Error handling
 
@@ -148,7 +148,7 @@ p2 = p.catch_all(
 )  # Effect[int, FatalError]
 ```
 
-More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
+More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
 
 ### Requirements and providing them
 
@@ -169,7 +169,7 @@ E.run_sync(program)  # Succeeded("postgres://x")
 
 `provide(T)(impl)` subtracts the provided type from `R`, so requirements can be provided one at a time, anywhere in the program — a partially provided effect is an ordinary value carrying the remainder in `R`, and `run_sync` accepts it only once `R` reaches `Never`.
 
-More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_run_sync.py).
+More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
 
 ### Implicit requirements
 
@@ -196,7 +196,7 @@ E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
 
 `provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `provide` chain: `effect.provide(Greeting)(Greeting("hi"))`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
 
-More examples: [`test_implicit_requirement.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_implicit_requirement.py).
+More examples: [`test_implicit_requirement.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_implicit_requirement.py).
 
 ### Resource management with `on_exit` and Scope
 
@@ -217,7 +217,7 @@ program = conn.flat_map(
 
 A finalizer that dies doesn't skip the remaining finalizers; its defect surfaces in the final `Exit`.
 
-More examples: [`test_scope.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_scope.py).
+More examples: [`test_scope.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_scope.py).
 
 ### Generator syntax
 
@@ -240,7 +240,7 @@ E.run_sync(total(22))  # Succeeded(42)
 
 A failing yielded effect abandons the generator, so `try/except` around a `yield` never observes effect failures — use `catch_all` on the resulting effect instead.
 
-More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_gen.py).
+More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_gen.py).
 
 ### Wrapping third party code
 
@@ -261,7 +261,7 @@ def parse_json(text: str) -> E.Effect[Any, InvalidJson]:
     return E.attempt(lambda: json.loads(text), to_error)
 ```
 
-More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/test_attempt.py).
+More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_attempt.py).
 
 ## Standard library
 
@@ -284,7 +284,7 @@ E.run_sync(
 )
 ```
 
-More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_logger.py), [`test_pretty_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/tests/std/test_pretty_logger.py).
+More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_logger.py), [`test_pretty_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_pretty_logger.py).
 
 ## Roadmap
 

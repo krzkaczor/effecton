@@ -25,7 +25,7 @@ uv run ut list       # List workspace members and their tasks
 
 `typecheck` and `test` fan out across every workspace package; run them from inside a package (for example `packages/effecton/`) to check just that package.
 
-Type-level behavior (inference of value and error channels, variance) is tested in the `packages/effecton/tests/test_types_*.py` files and checked by `ty` as part of `uv run ut typecheck`.
+Type-level behavior (inference of value and error channels, variance) is tested in the `packages/effecton/src/effecton/test_types_*.py` files and checked by `ty` as part of `uv run ut typecheck`.
 
 ## Changesets
 

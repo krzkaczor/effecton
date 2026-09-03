@@ -36,5 +36,5 @@ typecheck = "ty check ."
 unused-ignore-comment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-qs"
+testpaths = ["src"]
+addopts = "-q"
