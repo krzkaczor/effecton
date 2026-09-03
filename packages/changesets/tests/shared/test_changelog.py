@@ -2,9 +2,11 @@ from pathlib import Path
 
 from changesets.shared import changelog
 from changesets.shared.changeset import Changeset
+from changesets.shared.github import PullRequest
 from changesets.shared.semver import Version
 
 VERSION = Version(major=0, minor=2, patch=0)
+REPOSITORY = "krzkaczor/effecton"
 
 
 def cs(name, bumps, summary):
@@ -20,13 +22,31 @@ def test_renders_a_section_grouped_by_bump_level():
         cs("three", {"effecton": "minor"}, "Add `E.zip`."),
     ]
 
-    section = changelog.render_section("effecton", VERSION, changesets)
+    section = changelog.render_section("effecton", VERSION, changesets, {})
 
     assert section == (
         "## 0.2.0\n\n"
         "### Minor Changes\n\n"
         "- Add `E.retry`.\n"
         "- Add `E.zip`.\n\n"
+        "### Patch Changes\n\n"
+        "- Fix a bug.\n"
+    )
+
+
+def test_links_bullets_to_their_pull_requests():
+    changesets = [
+        cs("one", {"effecton": "minor"}, "Add `E.retry`."),
+        cs("two", {"effecton": "patch"}, "Fix a bug."),
+    ]
+    pull_requests = {changesets[0].path: PullRequest(REPOSITORY, 4)}
+
+    section = changelog.render_section("effecton", VERSION, changesets, pull_requests)
+
+    assert section == (
+        "## 0.2.0\n\n"
+        "### Minor Changes\n\n"
+        "- Add `E.retry`. ([#4](https://github.com/krzkaczor/effecton/pull/4))\n\n"
         "### Patch Changes\n\n"
         "- Fix a bug.\n"
     )
@@ -39,7 +59,7 @@ def test_skips_other_packages_and_empty_summaries():
         cs("three", {"effecton": "patch"}, "Fix a bug."),
     ]
 
-    section = changelog.render_section("effecton", VERSION, changesets)
+    section = changelog.render_section("effecton", VERSION, changesets, {})
 
     assert section == "## 0.2.0\n\n### Patch Changes\n\n- Fix a bug.\n"
 

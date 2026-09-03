@@ -1,24 +1,34 @@
 """Render and splice CHANGELOG.md sections, JS-changesets style."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 from changesets.shared.changeset import Changeset
+from changesets.shared.github import PullRequest
 from changesets.shared.semver import BUMPS, Version
 
 _TITLES = {"major": "Major Changes", "minor": "Minor Changes", "patch": "Patch Changes"}
 
 
 def render_section(
-    package: str, version: Version, changesets: Sequence[Changeset]
+    package: str,
+    version: Version,
+    changesets: Sequence[Changeset],
+    pull_requests: Mapping[Path, PullRequest],
 ) -> str:
+    def bullet(c: Changeset) -> str:
+        pr = pull_requests.get(c.path)
+        if pr is None:
+            return f"- {c.summary}"
+        return f"- {c.summary} ([#{pr.number}]({pr.url}))"
+
     parts = [f"## {version}"]
     for level in BUMPS:
-        summaries = [
-            c.summary for c in changesets if c.bumps.get(package) == level and c.summary
+        bullets = [
+            bullet(c) for c in changesets if c.bumps.get(package) == level and c.summary
         ]
-        if summaries:
-            bullets = "\n".join(f"- {summary}" for summary in summaries)
-            parts.append(f"### {_TITLES[level]}\n\n{bullets}")
+        if bullets:
+            parts.append(f"### {_TITLES[level]}\n\n" + "\n".join(bullets))
 
     return "\n\n".join(parts) + "\n"
 
