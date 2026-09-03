@@ -24,6 +24,20 @@ effecton: minor
 Add `E.retry` combinator.
 ```
 
+When `changeset version` turns a changeset into a changelog bullet, it appends
+a link to the pull request that added the file:
+
+```markdown
+- Add `E.retry` combinator. ([#4](https://github.com/krzkaczor/effecton/pull/4))
+```
+
+The PR number comes from the subject of the first-parent commit that
+introduced the changeset (`... (#4)` for squash merges, `Merge pull request
+#4 ...` for merge commits); a rebase-merged or uncommitted changeset gets no
+link. The URL is built from the `origin` remote, which must point at GitHub.
+Because `changeset notes` reads the changelog back, GitHub Releases carry the
+same links.
+
 ## Release flow
 
 `.github/workflows/release.yml` runs on every push to `main`:

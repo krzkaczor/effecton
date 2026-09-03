@@ -35,4 +35,4 @@ Every user-facing change to a released package needs a changeset — a small mar
 uv run changeset add --package effecton --bump patch --message "Fix X in Y"
 ```
 
-Use `major`, `minor`, or `patch` for `--bump`; the `--message` becomes the bullet in the package's CHANGELOG. Commit the generated `.changeset/*.md` file with your PR. After it merges, the release workflow collects pending changesets into a "Version Packages" PR, and merging that bumps versions, updates changelogs, tags, and publishes. `uv run changeset status` shows what's pending. See `packages/changesets/README.md` for details.
+Use `major`, `minor`, or `patch` for `--bump`; the `--message` becomes the bullet in the package's CHANGELOG, linked to the PR that merged the changeset. Commit the generated `.changeset/*.md` file with your PR. After it merges, the release workflow collects pending changesets into a "Version Packages" PR, and merging that bumps versions, updates changelogs, tags, and publishes. `uv run changeset status` shows what's pending. See `packages/changesets/README.md` for details.
