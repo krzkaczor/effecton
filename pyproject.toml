@@ -43,8 +43,7 @@ select = [
 ignore = ["ANN204"]
 
 [tool.ruff.lint.per-file-ignores]
-"packages/*/tests/*" = ["ANN"]
-"packages/examples/*/tests/*" = ["ANN"]
+"**/test_*.py" = ["ANN"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["changesets", "effecton", "skills_cli"]
