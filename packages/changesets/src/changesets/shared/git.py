@@ -1,9 +1,8 @@
 """Git service: Protocol plus Live (subprocess) and Test (in-memory).
 
-Live shells out to `git`, which resolves the repository from the process
-cwd; that is always inside the changeset root because `repo.find_root`
-walks upward from cwd. A non-zero exit is typed; git being absent from the
-machine stays a defect.
+Live shells out to `git` inside the directory it is constructed with, which
+must lie within the repository. A non-zero exit is typed; git being absent
+from the machine stays a defect.
 """
 
 import subprocess
@@ -36,7 +35,10 @@ class Protocol(typing.Protocol):
     def remote_url(self, name: str) -> E.Effect[str, GitCommandFailed]: ...
 
 
+@dataclass(frozen=True)
 class Live(Protocol):
+    cwd: Path
+
     def added_in(self, path: Path) -> E.Effect[str | None, GitCommandFailed]:
         # --first-parent follows main-branch history only, so the adding
         # commit is the squash or merge commit that landed the PR, whose
@@ -49,12 +51,12 @@ class Live(Protocol):
             "--",
             str(path),
         )
-        return _run(args).map(
+        return _run(self.cwd, args).map(
             lambda out: next((line for line in out.splitlines() if line.strip()), None)
         )
 
     def remote_url(self, name: str) -> E.Effect[str, GitCommandFailed]:
-        return _run(("remote", "get-url", name)).map(str.strip)
+        return _run(self.cwd, ("remote", "get-url", name)).map(str.strip)
 
 
 @dataclass
@@ -77,10 +79,10 @@ class Test(Protocol):
         return E.success(self.remotes[name])
 
 
-def _run(args: tuple[str, ...]) -> E.Effect[str, GitCommandFailed]:
+def _run(cwd: Path, args: tuple[str, ...]) -> E.Effect[str, GitCommandFailed]:
     def go() -> str:
         completed = subprocess.run(
-            ("git", *args), capture_output=True, text=True, check=True
+            ("git", *args), cwd=cwd, capture_output=True, text=True, check=True
         )
         return completed.stdout
 

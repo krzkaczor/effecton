@@ -15,7 +15,7 @@ def version() -> None:
     releases = execute(
         apply_versions(Path.cwd())
         .provide(FileSystem.Protocol)(FileSystem.Live())
-        .provide(Git.Protocol)(Git.Live())
+        .provide(Git.Protocol)(Git.Live(cwd=Path.cwd()))
     )
     if not releases:
         typer.echo("No unreleased changesets found.")
