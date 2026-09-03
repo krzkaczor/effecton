@@ -1,16 +1,19 @@
 """Inspect and rewrite a skill's YAML frontmatter."""
 
+from dataclasses import dataclass
+
 import frontmatter
 import yaml
 
 import effecton as E
-from skills_cli.errors import FrontmatterParseError
 
 
-def _to_error(e: Exception) -> FrontmatterParseError:
-    if isinstance(e, yaml.YAMLError):
-        return FrontmatterParseError(message=str(e))
-    raise e
+@dataclass(frozen=True)
+class FrontmatterParseError(E.EffectonError):
+    message: str
+
+    def __str__(self) -> str:
+        return f"Invalid skill frontmatter: {self.message}"
 
 
 def parse(body: str) -> E.Effect[frontmatter.Post, FrontmatterParseError]:
@@ -29,3 +32,9 @@ def disable_model_invocation(
         return frontmatter.dumps(post)
 
     return E.attempt(go, _to_error)
+
+
+def _to_error(e: Exception) -> FrontmatterParseError:
+    if isinstance(e, yaml.YAMLError):
+        return FrontmatterParseError(message=str(e))
+    raise e

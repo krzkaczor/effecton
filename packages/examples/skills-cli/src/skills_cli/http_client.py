@@ -8,7 +8,27 @@ from typing import runtime_checkable
 import httpx
 
 import effecton as E
-from skills_cli.errors import HttpError, HttpRequestError, HttpStatusError
+
+
+@dataclass(frozen=True)
+class HttpRequestError(E.EffectonError):
+    url: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"Request to {self.url} failed: {self.message}"
+
+
+@dataclass(frozen=True)
+class HttpStatusError(E.EffectonError):
+    url: str
+    status_code: int
+
+    def __str__(self) -> str:
+        return f"Fetching {self.url} returned HTTP {self.status_code}"
+
+
+type HttpError = HttpRequestError | HttpStatusError
 
 
 @runtime_checkable

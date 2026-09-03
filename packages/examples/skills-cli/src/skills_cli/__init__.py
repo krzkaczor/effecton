@@ -7,7 +7,6 @@ then ``FileSystem.Protocol`` / ``FileSystem.Live`` / ``FileSystem.Test``.
 """
 
 from skills_cli import (
-    errors,
     file_system,
     http_client,
     parse_url,
@@ -17,7 +16,6 @@ from skills_cli import (
 )
 
 __all__ = [
-    "errors",
     "file_system",
     "http_client",
     "parse_url",

@@ -13,11 +13,42 @@ from pathlib import Path
 from typing import runtime_checkable
 
 import effecton as E
-from skills_cli.errors import (
-    PathAlreadyExists,
-    PathIsADirectory,
-    PathIsNotADirectory,
-    PermissionDenied,
+
+
+@dataclass(frozen=True)
+class PermissionDenied(E.EffectonError):
+    path: Path
+
+    def __str__(self) -> str:
+        return f"Permission denied: {self.path}"
+
+
+@dataclass(frozen=True)
+class PathIsNotADirectory(E.EffectonError):
+    path: Path
+
+    def __str__(self) -> str:
+        return f"{self.path} exists but is not a directory"
+
+
+@dataclass(frozen=True)
+class PathIsADirectory(E.EffectonError):
+    path: Path
+
+    def __str__(self) -> str:
+        return f"Can't write {self.path}: it is a directory"
+
+
+@dataclass(frozen=True)
+class PathAlreadyExists(E.EffectonError):
+    path: Path
+
+    def __str__(self) -> str:
+        return f"Can't create symlink {self.path}: it already exists"
+
+
+type FileSystemError = (
+    PermissionDenied | PathIsNotADirectory | PathIsADirectory | PathAlreadyExists
 )
 
 

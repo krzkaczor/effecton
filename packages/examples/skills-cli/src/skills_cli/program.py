@@ -7,9 +7,15 @@ from skills_cli import file_system as FileSystem
 from skills_cli import http_client as HttpClient
 from skills_cli import parse_url, skill
 from skills_cli import terminal as Terminal
-from skills_cli.errors import InstallError
 
 type Services = FileSystem.Protocol | HttpClient.Protocol | Terminal.Protocol
+
+type InstallError = (
+    parse_url.ParseUrlError
+    | HttpClient.HttpError
+    | skill.FrontmatterParseError
+    | FileSystem.FileSystemError
+)
 
 
 @E.gen

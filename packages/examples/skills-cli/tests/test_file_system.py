@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import effecton as E
-from skills_cli import errors
 from skills_cli import file_system as FileSystem
 
 
@@ -85,7 +84,7 @@ def test_live_exists_fails_without_search_permission_on_the_parent(tmp_path):
     result = E.run_sync(fs.exists(probe))
     locked.chmod(0o755)
 
-    assert result == E.Failure(cause=E.Fail(errors.PermissionDenied(path=probe)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PermissionDenied(path=probe)))
 
 
 def test_live_mkdir_fails_without_write_permission_on_the_parent(tmp_path):
@@ -98,7 +97,7 @@ def test_live_mkdir_fails_without_write_permission_on_the_parent(tmp_path):
     result = E.run_sync(fs.mkdir(target))
     readonly.chmod(0o755)
 
-    assert result == E.Failure(cause=E.Fail(errors.PermissionDenied(path=target)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PermissionDenied(path=target)))
 
 
 def test_live_mkdir_fails_when_a_file_occupies_the_path(tmp_path):
@@ -108,7 +107,9 @@ def test_live_mkdir_fails_when_a_file_occupies_the_path(tmp_path):
 
     result = E.run_sync(fs.mkdir(occupied))
 
-    assert result == E.Failure(cause=E.Fail(errors.PathIsNotADirectory(path=occupied)))
+    assert result == E.Failure(
+        cause=E.Fail(FileSystem.PathIsNotADirectory(path=occupied))
+    )
 
 
 def test_live_mkdir_fails_when_a_parent_is_a_file(tmp_path):
@@ -119,7 +120,9 @@ def test_live_mkdir_fails_when_a_parent_is_a_file(tmp_path):
 
     result = E.run_sync(fs.mkdir(target))
 
-    assert result == E.Failure(cause=E.Fail(errors.PathIsNotADirectory(path=target)))
+    assert result == E.Failure(
+        cause=E.Fail(FileSystem.PathIsNotADirectory(path=target))
+    )
 
 
 def test_live_write_text_fails_without_write_permission_on_the_parent(tmp_path):
@@ -132,7 +135,7 @@ def test_live_write_text_fails_without_write_permission_on_the_parent(tmp_path):
     result = E.run_sync(fs.write_text(target, "body"))
     readonly.chmod(0o755)
 
-    assert result == E.Failure(cause=E.Fail(errors.PermissionDenied(path=target)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PermissionDenied(path=target)))
 
 
 def test_live_write_text_fails_when_the_path_is_a_directory(tmp_path):
@@ -142,7 +145,7 @@ def test_live_write_text_fails_when_the_path_is_a_directory(tmp_path):
 
     result = E.run_sync(fs.write_text(target, "body"))
 
-    assert result == E.Failure(cause=E.Fail(errors.PathIsADirectory(path=target)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PathIsADirectory(path=target)))
 
 
 def test_live_symlink_fails_without_write_permission_on_the_parent(tmp_path):
@@ -155,7 +158,7 @@ def test_live_symlink_fails_without_write_permission_on_the_parent(tmp_path):
     result = E.run_sync(fs.symlink(link, tmp_path / "target"))
     readonly.chmod(0o755)
 
-    assert result == E.Failure(cause=E.Fail(errors.PermissionDenied(path=link)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PermissionDenied(path=link)))
 
 
 def test_live_symlink_fails_when_the_link_path_is_taken_by_a_dangling_symlink(
@@ -167,7 +170,7 @@ def test_live_symlink_fails_when_the_link_path_is_taken_by_a_dangling_symlink(
 
     result = E.run_sync(fs.symlink(link, tmp_path / "target"))
 
-    assert result == E.Failure(cause=E.Fail(errors.PathAlreadyExists(path=link)))
+    assert result == E.Failure(cause=E.Fail(FileSystem.PathAlreadyExists(path=link)))
 
 
 def test_test_impl_records_mutations():

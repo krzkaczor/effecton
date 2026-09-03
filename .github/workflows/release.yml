@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.released.outputs.needs_release }}
+      version: ${{ steps.released.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A shallow clone omits tags; the tag-existence check below needs them.
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Set up Python
+        run: uv python install
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: Detect pending changesets
+        id: plan
+        run: |
+          shopt -s nullglob
+          files=(.changeset/*.md)
+          echo "has_changesets=$([ ${#files[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      # Branch A: changesets are pending -> open or update the Version Packages PR.
+      - name: Apply changesets
+        if: steps.plan.outputs.has_changesets == 'true'
+        run: |
+          uv run changeset status > /tmp/pr-body.md
+          uv run changeset version
+          uv lock
+
+      - name: Create or update Version Packages PR
+        if: steps.plan.outputs.has_changesets == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: changeset-release/main
+          title: "Version Packages"
+          commit-message: "Version Packages"
+          body-path: /tmp/pr-body.md
+
+      # Branch B: no changesets left (the Version PR merged) -> tag and release.
+      - name: Check whether the current version is released
+        id: released
+        if: steps.plan.outputs.has_changesets == 'false'
+        run: |
+          VERSION=$(uv run python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('packages/effecton/pyproject.toml').read_text())['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/effecton@$VERSION" > /dev/null; then
+            echo "needs_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.plan.outputs.has_changesets == 'false' && steps.released.outputs.needs_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run changeset notes effecton > /tmp/notes.md
+          # --target pins the tag to this run's commit; the default is the
+          # branch head, which may already be a later push than the one the
+          # publish job builds from.
+          gh release create "effecton@${{ steps.released.outputs.version }}" \
+            --target "$GITHUB_SHA" \
+            --title "effecton@${{ steps.released.outputs.version }}" \
+            --notes-file /tmp/notes.md
+
+  publish:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Set up Python
+        run: uv python install
+      - name: Build and publish effecton to PyPI
+        run: |
+          uv build --package effecton
+          uv publish

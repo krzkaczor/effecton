@@ -1,5 +1,5 @@
 import effecton as E
-from skills_cli import errors, parse_url
+from skills_cli import parse_url
 
 
 def test_converts_a_blob_url_at_the_repo_root():
@@ -81,7 +81,7 @@ def test_rejects_an_unsupported_host():
     result = E.run_sync(parse_url.parse(url))
 
     assert result == E.Failure(
-        cause=E.Fail(errors.UnsupportedHost(url=url, host="gitlab.com"))
+        cause=E.Fail(parse_url.UnsupportedHost(url=url, host="gitlab.com"))
     )
 
 
@@ -90,7 +90,7 @@ def test_rejects_a_url_not_pointing_at_skill_md():
 
     result = E.run_sync(parse_url.parse(url))
 
-    assert result == E.Failure(cause=E.Fail(errors.NotASkillFile(url=url)))
+    assert result == E.Failure(cause=E.Fail(parse_url.NotASkillFile(url=url)))
 
 
 def test_rejects_a_github_url_without_a_blob_segment():
@@ -100,7 +100,7 @@ def test_rejects_a_github_url_without_a_blob_segment():
 
     assert result == E.Failure(
         cause=E.Fail(
-            errors.MalformedSkillPath(
+            parse_url.MalformedSkillPath(
                 url=url, reason="expected /owner/repo/blob/ref/path"
             )
         )
@@ -114,7 +114,7 @@ def test_rejects_a_too_short_raw_url():
 
     assert result == E.Failure(
         cause=E.Fail(
-            errors.MalformedSkillPath(
+            parse_url.MalformedSkillPath(
                 url=url, reason="expected /owner/repo/[refs/heads/]ref/path"
             )
         )

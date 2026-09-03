@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import effecton as E
-from skills_cli import errors
 from skills_cli import file_system as FileSystem
 from skills_cli import http_client as HttpClient
+from skills_cli import parse_url
 from skills_cli import terminal as Terminal
-from skills_cli.program import install_skill
+from skills_cli.program import InstallError, install_skill
 
 HOME = Path("/home/user")
 URL = "https://github.com/octo/my-skill/blob/main/SKILL.md"
@@ -23,7 +23,7 @@ def capture() -> tuple[list[E.LogData], E.CurrentLoggers]:
 
 def wire(
     fs: FileSystem.Test, http: HttpClient.Test, terminal: Terminal.Test, url: str = URL
-) -> tuple[list[E.LogData], E.Effect[str, errors.InstallError]]:
+) -> tuple[list[E.LogData], E.Effect[str, InstallError]]:
     provided = (
         install_skill(url, HOME)
         .provide(FileSystem.Protocol)(fs)
@@ -119,7 +119,7 @@ def test_an_invalid_url_fails_before_touching_anything():
     result = E.run_sync(program)
 
     assert result == E.Failure(
-        cause=E.Fail(errors.UnsupportedHost(url=url, host="gitlab.com"))
+        cause=E.Fail(parse_url.UnsupportedHost(url=url, host="gitlab.com"))
     )
     assert fs.files == {}
     assert fs.links == {}
@@ -133,6 +133,6 @@ def test_an_http_failure_propagates():
     result = E.run_sync(program)
 
     assert result == E.Failure(
-        cause=E.Fail(errors.HttpStatusError(url=RAW_URL, status_code=404))
+        cause=E.Fail(HttpClient.HttpStatusError(url=RAW_URL, status_code=404))
     )
     assert fs.files == {}
