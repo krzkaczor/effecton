@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Copied from the repo root before `uv sync` (see CONTRIBUTING.md)
+packages/effecton/README.md
+packages/effecton/LICENSE
