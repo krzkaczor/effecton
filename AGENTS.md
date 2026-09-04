@@ -8,7 +8,6 @@ Verify every change as follows:
 
 - `uv run ut fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
 - Run everything through `uv run` (tasks via `uv run ut <task>`, defined in `[tool.ut.tasks]`), never through bare `python3`.
-- On a fresh clone or worktree, run `cp README.md LICENSE packages/effecton/` once before the first `uv sync` or `uv run`: the copies are gitignored, and hatchling needs them inside the package to build it.
 - Type behavior is pinned in `src/effecton/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
 
 ## Naming and API design

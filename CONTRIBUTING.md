@@ -5,7 +5,6 @@
 This repo is a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/): the library lives in `packages/effecton`, and more packages will join it under `packages/`.
 
 ```bash
-cp README.md LICENSE packages/effecton/   # hatchling needs them inside the package; the copies are gitignored
 uv sync --all-packages
 ```
 
