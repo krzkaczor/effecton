@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Copied from the repo root by the release workflow
+packages/effecton/LICENSE
