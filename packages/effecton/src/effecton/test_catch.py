@@ -1,18 +1,16 @@
 from dataclasses import dataclass
+from typing import final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str
 
 
-@dataclass(frozen=True)
-class BigOopsError(OopsError):
-    pass
-
-
+@final
 @dataclass(frozen=True)
 class OtherError(E.EffectonError):
     code: int
@@ -61,18 +59,6 @@ def test_die_short_circuits_catch():
 
     assert E.run_sync(p) == E.Failure(cause=E.Die(defect="boom"))
     assert calls == []
-
-
-def test_catch_matches_subclass_instances():
-    p = E.fail(BigOopsError("boom")).catch(OopsError)(lambda e: E.success(e.msg))
-
-    assert E.run_sync(p) == E.Succeeded(value="boom")
-
-
-def test_catch_does_not_match_base_class_instances():
-    p = E.fail(OopsError("boom")).catch(BigOopsError)(lambda _: E.success(0))
-
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_catch_handler_that_fails():

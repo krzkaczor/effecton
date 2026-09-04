@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass
+from typing import final
 
 import effecton as E
 
@@ -13,6 +14,7 @@ _SQUASH_SUBJECT = re.compile(r"\(#(?P<number>\d+)\)\s*$")
 _MERGE_SUBJECT = re.compile(r"^Merge pull request #(?P<number>\d+)\b")
 
 
+@final
 @dataclass(frozen=True)
 class NotAGitHubRemote(E.EffectonError):
     url: str

@@ -13,6 +13,7 @@ bump levels, and a body describing the change:
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import final
 
 import frontmatter
 import yaml
@@ -22,6 +23,7 @@ from changesets.shared.config import UnknownPackage
 from changesets.shared.semver import Bump
 
 
+@final
 @dataclass(frozen=True)
 class MalformedChangeset(E.EffectonError):
     path: Path
@@ -31,6 +33,7 @@ class MalformedChangeset(E.EffectonError):
         return f"Invalid changeset {self.path}: {self.reason}"
 
 
+@final
 @dataclass(frozen=True)
 class InvalidBumpLevel(E.EffectonError):
     path: Path

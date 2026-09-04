@@ -2,12 +2,14 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import final
 
 import effecton as E
 from changesets.shared import changelog, config, repo
 from changesets.shared import file_system as FileSystem
 
 
+@final
 @dataclass(frozen=True)
 class NoReleasedVersion(E.EffectonError):
     package: str

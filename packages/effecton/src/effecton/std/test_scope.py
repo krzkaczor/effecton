@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Never
+from typing import Never, final
 
 import effecton as E
 
@@ -9,6 +9,7 @@ class Db:
     url: str
 
 
+@final
 @dataclass(frozen=True)
 class BrokenError(E.EffectonError):
     msg: str

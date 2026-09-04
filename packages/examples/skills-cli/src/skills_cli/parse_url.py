@@ -1,6 +1,7 @@
 """Validate a GitHub SKILL.md URL and normalize it to its raw form."""
 
 from dataclasses import dataclass
+from typing import final
 from urllib.parse import urlparse
 
 import effecton as E
@@ -8,6 +9,7 @@ import effecton as E
 ALLOWED_HOSTS = {"github.com", "www.github.com", "raw.githubusercontent.com"}
 
 
+@final
 @dataclass(frozen=True)
 class UnsupportedHost(E.EffectonError):
     url: str
@@ -17,6 +19,7 @@ class UnsupportedHost(E.EffectonError):
         return f"Unsupported host {self.host!r} in {self.url}"
 
 
+@final
 @dataclass(frozen=True)
 class NotASkillFile(E.EffectonError):
     url: str
@@ -25,6 +28,7 @@ class NotASkillFile(E.EffectonError):
         return f"{self.url} doesn't point to a SKILL.md"
 
 
+@final
 @dataclass(frozen=True)
 class MalformedSkillPath(E.EffectonError):
     url: str

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol, final, runtime_checkable
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str

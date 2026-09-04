@@ -10,11 +10,12 @@ the program relies on this.
 import typing
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import runtime_checkable
+from typing import final, runtime_checkable
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class PermissionDenied(E.EffectonError):
     path: Path
@@ -23,6 +24,7 @@ class PermissionDenied(E.EffectonError):
         return f"Permission denied: {self.path}"
 
 
+@final
 @dataclass(frozen=True)
 class PathIsNotADirectory(E.EffectonError):
     path: Path
@@ -31,6 +33,7 @@ class PathIsNotADirectory(E.EffectonError):
         return f"{self.path} exists but is not a directory"
 
 
+@final
 @dataclass(frozen=True)
 class PathIsADirectory(E.EffectonError):
     path: Path
@@ -39,6 +42,7 @@ class PathIsADirectory(E.EffectonError):
         return f"Can't write {self.path}: it is a directory"
 
 
+@final
 @dataclass(frozen=True)
 class PathAlreadyExists(E.EffectonError):
     path: Path

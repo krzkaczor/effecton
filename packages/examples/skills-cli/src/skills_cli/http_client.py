@@ -3,13 +3,14 @@
 import typing
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import runtime_checkable
+from typing import final, runtime_checkable
 
 import httpx
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class HttpRequestError(E.EffectonError):
     url: str
@@ -19,6 +20,7 @@ class HttpRequestError(E.EffectonError):
         return f"Request to {self.url} failed: {self.message}"
 
 
+@final
 @dataclass(frozen=True)
 class HttpStatusError(E.EffectonError):
     url: str

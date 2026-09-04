@@ -18,13 +18,7 @@ T = TypeVar("T", bound=EffectonError)
 class CatchBinder(Generic[A, E, R, T]):  # noqa: UP046
     """One step of ``effect.catch(T)(handler)``: T is bound, handler pending.
 
-    Calling it runs the handler for failures that are instances of T and
-    returns the effect with T subtracted from its error channel. Other
-    failures and defects pass through untouched.
-
-    Curried for the same reason as ``provide``: subtracting T from E only
-    solves when T is already pinned, so it is bound here as a class
-    parameter before the handler is seen.
+    Catch particular error E, return new Effect.
     """
 
     effect: Effect[A, E, R]

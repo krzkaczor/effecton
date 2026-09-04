@@ -2,10 +2,12 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class InstallFailed(E.EffectonError):
     url: str

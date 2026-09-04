@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, final
 
 import effecton as E
 
@@ -14,6 +14,7 @@ BUMPS: tuple[Bump, ...] = ("major", "minor", "patch")
 _VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
+@final
 @dataclass(frozen=True)
 class InvalidVersion(E.EffectonError):
     package: str

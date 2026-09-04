@@ -1,24 +1,22 @@
 from dataclasses import dataclass
-from typing import Literal, Never, assert_type
+from typing import Literal, Never, assert_type, final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class ParseError(E.EffectonError):
     value: str
 
 
+@final
 @dataclass(frozen=True)
 class NegativeError(E.EffectonError):
     value: int
 
 
-@dataclass(frozen=True)
-class BigNegativeError(NegativeError):
-    pass
-
-
+@final
 @dataclass(frozen=True)
 class OtherError(E.EffectonError):
     code: int
@@ -74,22 +72,6 @@ handled = chain.catch(NegativeError)(lambda _: E.success(0)).catch(ParseError)(
 assert_type(handled, E.Effect[int])
 assert_type(E.run_sync(handled), E.Succeeded[int] | E.Failure)
 
-# Catching a base class removes its subclass members; the runtime uses isinstance.
-with_subclass = parse("1").flat_map(
-    lambda x: E.success(x) if x > 0 else E.fail(BigNegativeError(x))
-)
-assert_type(with_subclass, E.Effect[int, ParseError | BigNegativeError])
-assert_type(
-    with_subclass.catch(NegativeError)(lambda _: E.success(0)),
-    E.Effect[int, ParseError],
-)
-
-# Catching a subclass cannot split a base-class member out of the union.
-assert_type(
-    chain.catch(BigNegativeError)(lambda _: E.success(0)),
-    E.Effect[int, ParseError | NegativeError],
-)
-
 # The handler's requirements union into R; the source's ride through.
 assert_type(
     chain.catch(NegativeError)(lambda _: E.require(Db).map(lambda _: 0)),
@@ -121,6 +103,13 @@ def wrong_input(e: str) -> E.Effect[int]:
 
 # The handler must accept the caught error type.
 chain.catch(NegativeError)(wrong_input)  # ty: ignore[invalid-argument-type]
+
+
+# Error classes are leaves: subclassing a final error is rejected, so the
+# runtime isinstance check and the static subtraction of T from E always agree.
+class BigNegativeError(NegativeError):  # ty: ignore[subclass-of-final-class]
+    pass
+
 
 # The caught type must be an EffectonError class, not an instance.
 chain.catch(ValueError)  # ty: ignore[invalid-argument-type]

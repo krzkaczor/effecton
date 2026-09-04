@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import final
 
 import effecton as E
 from changesets.shared import changeset, config
@@ -13,6 +14,7 @@ CHANGESET_DIR = ".changeset"
 CONFIG_FILE = "config.toml"
 
 
+@final
 @dataclass(frozen=True)
 class NotAChangesetRepo(E.EffectonError):
     start: Path
