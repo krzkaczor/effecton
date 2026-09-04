@@ -12,10 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # hatchling can't reference parent paths, so the package needs its own copies.
-      - name: Copy README and LICENSE into the package
-        run: cp README.md LICENSE packages/effecton/
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
