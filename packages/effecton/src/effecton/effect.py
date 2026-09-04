@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, Never, final
 from typing_extensions import TypeForm
 
 if TYPE_CHECKING:
+    from effecton.catch import CatchBinder
     from effecton.provide import ProvideBinder
     from effecton.std.scope import Scope
 
@@ -45,6 +46,11 @@ class Effect[A, E: EffectonError = Never, R = Never]:
         self, f: Callable[[E], Effect[B, E2, R2]]
     ) -> Effect[A | B, E2, R | R2]:
         return OnFailure[A | B, E2, R | R2](self, f)
+
+    def catch[T: EffectonError](self, error_type: type[T]) -> CatchBinder[A, E, R, T]:
+        from effecton.catch import CatchBinder
+
+        return CatchBinder(effect=self, error_type=error_type)
 
     def on_exit[R2](self, finalizer: Effect[Any, Never, R2]) -> Effect[A, E, R | R2]:
         return OnExit(self, finalizer)
