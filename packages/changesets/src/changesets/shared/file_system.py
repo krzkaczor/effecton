@@ -8,11 +8,12 @@ disk full or I/O errors, stays a defect.
 import typing
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import runtime_checkable
+from typing import final, runtime_checkable
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class FileNotFound(E.EffectonError):
     path: Path
@@ -21,6 +22,7 @@ class FileNotFound(E.EffectonError):
         return f"File not found: {self.path}"
 
 
+@final
 @dataclass(frozen=True)
 class PermissionDenied(E.EffectonError):
     path: Path
@@ -29,6 +31,7 @@ class PermissionDenied(E.EffectonError):
         return f"Permission denied: {self.path}"
 
 
+@final
 @dataclass(frozen=True)
 class PathIsADirectory(E.EffectonError):
     path: Path

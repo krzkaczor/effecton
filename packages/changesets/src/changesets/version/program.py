@@ -41,15 +41,6 @@ def apply_versions(
     if not changesets:
         return ()
 
-    def missing_as_absent(
-        error: FileSystem.FileSystemError,
-    ) -> E.Effect[
-        str | None, FileSystem.PermissionDenied | FileSystem.PathIsADirectory
-    ]:
-        if isinstance(error, FileSystem.FileNotFound):
-            return E.success(None)
-        return E.fail(error)
-
     # Resolve PR links before any write, and before the changeset files are
     # deleted, since git history is queried by path.
     remote = yield from git.remote_url("origin")
@@ -75,7 +66,9 @@ def apply_versions(
             release.package, release.new, changesets, pull_requests
         )
         changelog_path = package_dir / "CHANGELOG.md"
-        existing = yield from fs.read_text(changelog_path).catch_all(missing_as_absent)
+        existing = yield from fs.read_text(changelog_path).catch(
+            FileSystem.FileNotFound
+        )(lambda _: E.success(None))
         yield from fs.write_text(
             changelog_path, changelog.prepend(release.package, existing, section)
         )

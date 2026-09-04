@@ -4,11 +4,12 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class MissingConfig(E.EffectonError):
     path: Path
@@ -17,6 +18,7 @@ class MissingConfig(E.EffectonError):
         return f"Missing changesets config: {self.path}"
 
 
+@final
 @dataclass(frozen=True)
 class MalformedConfig(E.EffectonError):
     path: Path
@@ -26,6 +28,7 @@ class MalformedConfig(E.EffectonError):
         return f"Invalid config {self.path}: {self.reason}"
 
 
+@final
 @dataclass(frozen=True)
 class UnknownPackage(E.EffectonError):
     path: Path

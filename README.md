@@ -9,11 +9,13 @@ An `Effect[A, E, R]` is a description of a computation that succeeds with `A`, f
 
 ```python
 from dataclasses import dataclass
+from typing import final
 
 import effecton as E
 
 
-# Custom errors need to extend EffectonError
+# Custom errors extend EffectonError and are final: one leaf class per cause
+@final
 @dataclass(frozen=True)
 class SecretInvalidError(E.EffectonError):
     actual: str
@@ -82,7 +84,8 @@ E.success(21).map(lambda x: x * 2)  # Effect[int]
 E.sync(lambda: print("hi"))  # Effect[None] — defers a side effect until the effect runs
 
 
-# Custom errors need to extend EffectonError
+# Custom errors extend EffectonError and are final: one leaf class per cause
+@final
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str
@@ -134,19 +137,21 @@ p = E.fail(OopsError(msg="oops")).catch_all(
 E.run_sync(p)  # Succeeded("recovered from oops")
 ```
 
-Use `catch_all` with `if` to selectively handle errors:
+Use `catch` to handle one error type and leave the rest in the error channel. The handler receives the narrowed error, and defects (`Die`) pass through untouched:
 
 ```python
 n = random.randint(1, 4)
 
 p = E.success(n).flat_map(
     lambda r: E.fail(FatalError()) if r == 2 else E.fail(RecoverableError())
-)  # Effect[never, FatalError | RecoverableError]
+)  # Effect[Never, FatalError | RecoverableError]
 
-p2 = p.catch_all(
-    lambda e: E.success(42) if isinstance(e, RecoverableError) else E.fail(e)
-)  # Effect[int, FatalError]
+p2 = p.catch(RecoverableError)(lambda e: E.success(42))  # Effect[int, FatalError]
 ```
+
+`catch` is curried like `provide`: the error class is bound first so the type checker can subtract it from the union. Catching a class the effect cannot fail with is a well-typed no-op.
+
+Error classes are leaves: mark every error `@final` and never subclass one. `catch` matches by class, and `@final` keeps its runtime `isinstance` check and the static subtraction in agreement, because the type checker cannot distinguish a subclass from its base when subtracting from a union.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
 
@@ -238,7 +243,7 @@ def total(n: int) -> E.EffectGen[int, OopsError]:
 E.run_sync(total(22))  # Succeeded(42)
 ```
 
-A failing yielded effect abandons the generator, so `try/except` around a `yield` never observes effect failures — use `catch_all` on the resulting effect instead.
+A failing yielded effect abandons the generator, so `try/except` around a `yield` never observes effect failures — use `catch` or `catch_all` on the resulting effect instead.
 
 More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_gen.py).
 
@@ -247,6 +252,7 @@ More examples: [`test_gen.py`](https://github.com/krzkaczor/effecton/blob/main/p
 `attempt` runs an exception-throwing thunk lazily and maps expected exceptions into the typed error channel. Re-raise unexpected exceptions from the mapper so they stay defects:
 
 ```python
+@final
 @dataclass(frozen=True)
 class InvalidJson(E.EffectonError):
     text: str

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Never
+from typing import Never, final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class OopsError(E.EffectonError):
     msg: str

@@ -9,12 +9,14 @@ which one is the project version.
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import final
 
 import effecton as E
 
 _VERSION_LINE = re.compile(r'^version = "(?P<version>[^"]*)"$', re.MULTILINE)
 
 
+@final
 @dataclass(frozen=True)
 class MissingVersionLine(E.EffectonError):
     path: Path
@@ -23,6 +25,7 @@ class MissingVersionLine(E.EffectonError):
         return f'No version = "..." line found in {self.path}'
 
 
+@final
 @dataclass(frozen=True)
 class AmbiguousVersionLine(E.EffectonError):
     path: Path

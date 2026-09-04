@@ -1,6 +1,7 @@
 """Inspect and rewrite a skill's YAML frontmatter."""
 
 from dataclasses import dataclass
+from typing import final
 
 import frontmatter
 import yaml
@@ -8,6 +9,7 @@ import yaml
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class FrontmatterParseError(E.EffectonError):
     message: str

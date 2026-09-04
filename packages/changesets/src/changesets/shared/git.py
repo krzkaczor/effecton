@@ -9,11 +9,12 @@ import subprocess
 import typing
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import runtime_checkable
+from typing import final, runtime_checkable
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class GitCommandFailed(E.EffectonError):
     command: tuple[str, ...]

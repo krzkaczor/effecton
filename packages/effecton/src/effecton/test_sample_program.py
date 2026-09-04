@@ -1,14 +1,17 @@
 from dataclasses import dataclass
+from typing import final
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class ParseError(E.EffectonError):
     value: str
     pass
 
 
+@final
 @dataclass(frozen=True)
 class NegativeIntError(E.EffectonError):
     value: int

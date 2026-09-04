@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Literal, Never, Protocol, assert_type, runtime_checkable
+from typing import Literal, Never, Protocol, assert_type, final, runtime_checkable
 
 import effecton as E
 
 
+@final
 @dataclass(frozen=True)
 class ParseError(E.EffectonError):
     value: str
