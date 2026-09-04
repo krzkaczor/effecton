@@ -1,6 +1,6 @@
 [project]
 name = "effecton"
-version = "0.1.1"
+version = "0.1.2"
 description = "A typed effect system for Python, inspired by Effect-TS"
 readme = "README.md"
 license = "MIT"
