@@ -9,6 +9,7 @@ from effecton.effect import (
     Die,
     Effect,
     EffectonError,
+    Fail,
     FailCause,
     FlatMap,
     Node,
@@ -100,7 +101,7 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case FlatMap():
                             continue
                         case OnFailure():
-                            if not isinstance(cause, Die):
+                            if isinstance(cause, Fail):
                                 current = run_fn_or_die(item.handler, cause.error)
                                 break
                         case _:

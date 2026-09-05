@@ -29,6 +29,8 @@ def main(skill_url: str) -> None:
             if isinstance(defect, BaseException):
                 raise defect
             raise RuntimeError(str(defect))
+        case E.Failure(cause=E.Interrupt(exception=exception)):
+            raise exception
 
 
 def run() -> None:

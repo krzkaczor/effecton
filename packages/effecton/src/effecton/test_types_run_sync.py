@@ -66,6 +66,16 @@ assert_type(chain.catch_all(partial_handler), E.Effect[int, ParseError])
 assert_type(E.run_sync(chain), E.Succeeded[int] | E.Failure[ParseError | NegativeError])
 assert_type(E.run_sync(E.success(1)), E.Succeeded[int] | E.Failure)
 
+# --- Cause has three states; only Fail carries the typed error ---
+
+typed_failure: E.Cause[ParseError] = E.Fail(ParseError("x"))
+defect: E.Cause[ParseError] = E.Die("boom")
+interrupt: E.Cause[ParseError] = E.Interrupt(KeyboardInterrupt())
+never_fails: E.Cause[Never] = E.Interrupt(KeyboardInterrupt())
+
+# A Fail of another error type does not fit.
+wrong_error: E.Cause[ParseError] = E.Fail(NegativeError(1))  # ty: ignore[invalid-assignment]
+
 # --- sync: value inferred from the thunk, error channel stays Never ---
 
 assert_type(E.sync(lambda: 1), E.Effect[Literal[1]])

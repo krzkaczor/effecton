@@ -30,7 +30,21 @@ class Die:
     defect: Any
 
 
-type Cause[E: EffectonError] = Fail[E] | Die
+@final
+@dataclass(frozen=True)
+class Interrupt:
+    """The effect was cut short by a cancellation.
+
+    Carries the BaseException that signalled it, such as
+    asyncio.CancelledError, so the runner can re-raise it once the
+    finalizers have run. Like Die, it is not an error: catch_all and
+    catch only handle Fail.
+    """
+
+    exception: BaseException
+
+
+type Cause[E: EffectonError] = Fail[E] | Die | Interrupt
 
 
 class Effect[A, E: EffectonError = Never, R = Never]:

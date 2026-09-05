@@ -10,8 +10,10 @@ from effecton.effect import (
     Die,
     Effect,
     EffectonError,
+    Fail,
     FailCause,
     FlatMap,
+    Interrupt,
     Node,
     OnExit,
     OnFailure,
@@ -46,8 +48,9 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     """Interpret an effect under asyncio, awaiting every coroutine effect.
 
     A cancellation, or any other BaseException raised by an await, a
-    thunk or a callback, unwinds the effect as a defect so finalizers
-    run, and is then re-raised instead of being returned as an Exit.
+    thunk or a callback, unwinds the effect with an Interrupt cause so
+    finalizers run, and is then re-raised instead of being returned as
+    an Exit.
     Finalizers are shielded: a cancellation that arrives while one is
     awaiting is remembered and the finalizer runs to completion.
     """
@@ -57,29 +60,31 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     finalizing = 0
     current: Node = effect  # ty: ignore[invalid-assignment]
 
-    def die(e: BaseException) -> Node:
+    def unwind(e: BaseException) -> Node:
         nonlocal cancelled
-        if not isinstance(e, Exception) and cancelled is None:
+        if isinstance(e, Exception):
+            return FailCause(cause=Die(defect=e))
+        if cancelled is None:
             cancelled = e
-        return FailCause(cause=Die(defect=e))
+        return FailCause(cause=Interrupt(exception=e))
 
     def guarded[**P](f: Callable[P, Node], *args: P.args, **kwargs: P.kwargs) -> Node:
         try:
             return f(*args, **kwargs)
         except BaseException as e:
-            return die(e)
+            return unwind(e)
 
     async def awaited(fn: Callable[[], Awaitable[Any]]) -> Node:
         try:
             return Success(await fn())
         except BaseException as e:
-            return die(e)
+            return unwind(e)
 
     async def awaited_uninterruptibly(fn: Callable[[], Awaitable[Any]]) -> Node:
         try:
             inner = asyncio.ensure_future(fn())
         except BaseException as e:
-            return die(e)
+            return unwind(e)
 
         # A cancellation of this task lands on the shield while the
         # finalizer keeps running; remember it and keep waiting.
@@ -87,7 +92,7 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
             try:
                 await asyncio.shield(inner)
             except BaseException as e:
-                die(e)
+                unwind(e)
         return guarded(lambda: Success(inner.result()))
 
     while True:
@@ -140,7 +145,7 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case FlatMap():
                             continue
                         case OnFailure():
-                            if not isinstance(cause, Die):
+                            if isinstance(cause, Fail):
                                 current = guarded(
                                     run_fn_or_die, item.handler, cause.error
                                 )
