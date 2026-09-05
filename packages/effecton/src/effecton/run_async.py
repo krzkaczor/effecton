@@ -1,4 +1,7 @@
-from typing import Any, assert_never
+import asyncio
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any, assert_never, final
 
 from typing_extensions import TypeForm
 
@@ -23,23 +26,81 @@ from effecton.run_sync import (
     OnExitFrame,
     RestoreEnv,
     default_or_die,
-    resume,
     run_fn_or_die,
 )
+
+
+@final
+@dataclass(frozen=True)
+class Finalizing:
+    """Interpreter stack frame delimiting a running finalizer.
+
+    Holds the outcome the finalizer interrupts, to resume once it settles.
+    While one is on the stack, awaits are shielded from cancellation.
+    """
+
+    outcome: Node
 
 
 async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     """Interpret an effect, awaiting every coroutine effect it reaches.
 
-    Only the thunks handed to ``coroutine`` are awaited, so any event loop
-    works. A cancellation (any BaseException raised by an await) unwinds
-    the effect as a defect so finalizers run, and is then re-raised
-    instead of being returned as an Exit.
+    Only the awaitables the ``coroutine`` thunks return are awaited, so
+    any event loop can drive it. A cancellation, or any other
+    BaseException raised by an await, a thunk or a callback, unwinds the
+    effect as a defect so finalizers run, and is then re-raised instead of
+    being returned as an Exit. Under asyncio, finalizers are shielded: a
+    cancellation that arrives while one is awaiting is remembered and the
+    finalizer runs to completion.
     """
-    stack: list[Frame] = []
+    stack: list[Frame | Finalizing] = []
     env: dict[TypeForm[Any], Any] = {}
     cancelled: BaseException | None = None
+    finalizing = 0
     current: Node = effect  # ty: ignore[invalid-assignment]
+
+    def note_cancellation(e: BaseException) -> None:
+        nonlocal cancelled
+        if not isinstance(e, Exception) and cancelled is None:
+            cancelled = e
+
+    def guarded[**P](f: Callable[P, Node], *args: P.args, **kwargs: P.kwargs) -> Node:
+        try:
+            return f(*args, **kwargs)
+        except BaseException as e:
+            note_cancellation(e)
+            return FailCause(cause=Die(defect=e))
+
+    async def awaited(fn: Callable[[], Awaitable[Any]]) -> Node:
+        try:
+            return Success(await fn())
+        except BaseException as e:
+            note_cancellation(e)
+            return FailCause(cause=Die(defect=e))
+
+    async def awaited_uninterruptibly(fn: Callable[[], Awaitable[Any]]) -> Node:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # Shielding has no portable form; outside asyncio a finalizer
+            # cut short by a cancellation dies like any other.
+            return await awaited(fn)
+
+        try:
+            inner = asyncio.ensure_future(fn())
+        except BaseException as e:
+            note_cancellation(e)
+            return FailCause(cause=Die(defect=e))
+
+        while True:
+            try:
+                return Success(await asyncio.shield(inner))
+            except BaseException as e:
+                # A cancellation of this task lands here while the
+                # finalizer keeps running; keep waiting for it.
+                note_cancellation(e)
+                if inner.done():
+                    return guarded(lambda: Success(inner.result()))
 
     while True:
         match current:
@@ -51,10 +112,16 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
+                            stack.append(Finalizing(outcome=current))
+                            finalizing += 1
+                            current = finalizer  # ty: ignore[invalid-assignment]
+                            break
+                        case Finalizing(outcome):
+                            finalizing -= 1
+                            current = outcome
                             break
                         case FlatMap():
-                            current = run_fn_or_die(item.and_then, value)
+                            current = guarded(run_fn_or_die, item.and_then, value)
                             break
                         case OnFailure():
                             continue
@@ -73,13 +140,22 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
+                            stack.append(Finalizing(outcome=current))
+                            finalizing += 1
+                            current = finalizer  # ty: ignore[invalid-assignment]
                             break
+                        case Finalizing():
+                            # The finalizer died; its defect replaces the
+                            # outcome it was finalizing.
+                            finalizing -= 1
+                            continue
                         case FlatMap():
                             continue
                         case OnFailure():
                             if not isinstance(cause, Die):
-                                current = run_fn_or_die(item.handler, cause.error)
+                                current = guarded(
+                                    run_fn_or_die, item.handler, cause.error
+                                )
                                 break
                         case _:
                             assert_never(item)
@@ -97,26 +173,18 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                 current = first  # ty: ignore[invalid-assignment]
 
             case Sync(fn):
-                try:
-                    current = Success(fn())
-                except Exception as e:
-                    current = FailCause(cause=Die(defect=e))
+                current = guarded(lambda: Success(fn()))
 
             case Coroutine(fn):
-                try:
-                    current = Success(await fn())
-                except Exception as e:
-                    current = FailCause(cause=Die(defect=e))
-                except BaseException as e:  # is some kinda of cancellation error
-                    if cancelled is None:
-                        cancelled = e
-                    current = FailCause(cause=Die(defect=e))
+                current = await (
+                    awaited_uninterruptibly(fn) if finalizing else awaited(fn)
+                )
 
             case Require(requirement_type):
                 if requirement_type in env:
                     current = Success(env[requirement_type])
                 else:
-                    current = default_or_die(requirement_type)
+                    current = guarded(lambda: default_or_die(requirement_type))
 
             case ProvideRequirement(first, requirement_type, requirement_impl):
                 stack.append(RestoreEnv(env))

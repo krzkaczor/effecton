@@ -292,3 +292,106 @@ def test_timeout_around_run_async_releases_scope():
     else:
         raise AssertionError("timeout did not fire")
     assert actions == ["acquired", "released"]
+
+
+def test_cancellation_during_release_lets_the_release_finish():
+    actions: list[str] = []
+    release_may_finish = asyncio.Event()
+
+    async def release(conn: str) -> None:
+        actions.append(f"release-start:{conn}")
+        await release_may_finish.wait()
+        actions.append(f"release-done:{conn}")
+
+    conn = E.acquire_and_release(
+        E.success("conn"), lambda c: E.coroutine(lambda: release(c))
+    )
+    p = conn.scoped()
+
+    async def main() -> None:
+        task = asyncio.create_task(E.run_async(p))
+        while not actions:
+            await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()  # a repeated cancellation must not abort it either
+        await asyncio.sleep(0)
+        release_may_finish.set()
+        await task
+
+    try:
+        asyncio.run(main())
+    except asyncio.CancelledError:
+        pass
+    else:
+        raise AssertionError("cancellation was swallowed")
+    assert actions == ["release-start:conn", "release-done:conn"]
+
+
+def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_reraises():
+    actions: list[str] = []
+
+    conn = E.acquire_and_release(
+        E.sync(lambda: actions.append("acquired")),
+        lambda _: E.sync(lambda: actions.append("released")),
+    )
+
+    async def main() -> None:
+        cancelled_future = asyncio.get_running_loop().create_future()
+        cancelled_future.cancel()
+        p = conn.flat_map(lambda _: E.sync(cancelled_future.result)).scoped()
+
+        await E.run_async(p)
+
+    try:
+        asyncio.run(main())
+    except asyncio.CancelledError:
+        pass
+    else:
+        raise AssertionError("cancellation was swallowed")
+    assert actions == ["acquired", "released"]
+
+
+def test_cancellation_raised_by_callback_runs_finalizers_then_reraises():
+    actions: list[str] = []
+
+    def boom(_: int) -> E.Effect[int]:
+        raise asyncio.CancelledError
+
+    p = E.success(1).flat_map(boom).on_exit(E.sync(lambda: actions.append("finalized")))
+
+    try:
+        asyncio.run(E.run_async(p))
+    except asyncio.CancelledError:
+        pass
+    else:
+        raise AssertionError("cancellation was swallowed")
+    assert actions == ["finalized"]
+
+
+def test_finalizer_defect_still_replaces_the_exit():
+    err = ValueError("cleanup failed")
+
+    async def bad_cleanup() -> None:
+        raise err
+
+    p = E.success(1).on_exit(E.coroutine(bad_cleanup))
+
+    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Die(defect=err))
+
+
+def test_nested_finalizers_run_inner_to_outer_across_awaits():
+    actions: list[str] = []
+
+    async def step(name: str) -> None:
+        await asyncio.sleep(0)
+        actions.append(name)
+
+    p = (
+        E.success(1)
+        .on_exit(E.coroutine(lambda: step("inner")))
+        .on_exit(E.coroutine(lambda: step("outer")))
+    )
+
+    assert asyncio.run(E.run_async(p)) == E.Succeeded(1)
+    assert actions == ["inner", "outer"]
