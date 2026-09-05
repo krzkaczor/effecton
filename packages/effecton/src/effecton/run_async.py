@@ -43,15 +43,13 @@ class Finalizing:
 
 
 async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
-    """Interpret an effect, awaiting every coroutine effect it reaches.
+    """Interpret an effect under asyncio, awaiting every coroutine effect.
 
-    Only the awaitables the ``coroutine`` thunks return are awaited, so
-    any event loop can drive it. A cancellation, or any other
-    BaseException raised by an await, a thunk or a callback, unwinds the
-    effect as a defect so finalizers run, and is then re-raised instead of
-    being returned as an Exit. Under asyncio, finalizers are shielded: a
-    cancellation that arrives while one is awaiting is remembered and the
-    finalizer runs to completion.
+    A cancellation, or any other BaseException raised by an await, a
+    thunk or a callback, unwinds the effect as a defect so finalizers
+    run, and is then re-raised instead of being returned as an Exit.
+    Finalizers are shielded: a cancellation that arrives while one is
+    awaiting is remembered and the finalizer runs to completion.
     """
     stack: list[Frame | Finalizing] = []
     env: dict[TypeForm[Any], Any] = {}
@@ -59,48 +57,38 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     finalizing = 0
     current: Node = effect  # ty: ignore[invalid-assignment]
 
-    def note_cancellation(e: BaseException) -> None:
+    def die(e: BaseException) -> Node:
         nonlocal cancelled
         if not isinstance(e, Exception) and cancelled is None:
             cancelled = e
+        return FailCause(cause=Die(defect=e))
 
     def guarded[**P](f: Callable[P, Node], *args: P.args, **kwargs: P.kwargs) -> Node:
         try:
             return f(*args, **kwargs)
         except BaseException as e:
-            note_cancellation(e)
-            return FailCause(cause=Die(defect=e))
+            return die(e)
 
     async def awaited(fn: Callable[[], Awaitable[Any]]) -> Node:
         try:
             return Success(await fn())
         except BaseException as e:
-            note_cancellation(e)
-            return FailCause(cause=Die(defect=e))
+            return die(e)
 
     async def awaited_uninterruptibly(fn: Callable[[], Awaitable[Any]]) -> Node:
         try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            # Shielding has no portable form; outside asyncio a finalizer
-            # cut short by a cancellation dies like any other.
-            return await awaited(fn)
-
-        try:
             inner = asyncio.ensure_future(fn())
         except BaseException as e:
-            note_cancellation(e)
-            return FailCause(cause=Die(defect=e))
+            return die(e)
 
-        while True:
+        # A cancellation of this task lands on the shield while the
+        # finalizer keeps running; remember it and keep waiting.
+        while not inner.done():
             try:
-                return Success(await asyncio.shield(inner))
+                await asyncio.shield(inner)
             except BaseException as e:
-                # A cancellation of this task lands here while the
-                # finalizer keeps running; keep waiting for it.
-                note_cancellation(e)
-                if inner.done():
-                    return guarded(lambda: Success(inner.result()))
+                die(e)
+        return guarded(lambda: Success(inner.result()))
 
     while True:
         match current:

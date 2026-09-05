@@ -123,7 +123,7 @@ match E.run_sync(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
         ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions
 ```
 
-`run_async` is the awaiting counterpart. It interprets the same effect inside a coroutine, awaiting every `coroutine` effect it reaches, and returns the same `Exit`. It awaits only what the thunks return, so any event loop can drive it:
+`run_async` is the awaiting counterpart. It interprets the same effect inside a coroutine, awaiting every `coroutine` effect it reaches, and returns the same `Exit`. It runs under asyncio:
 
 ```python
 exit = await E.run_async(effect)  # Exit[A, E], awaiting coroutine effects along the way
@@ -306,7 +306,7 @@ await E.run_async(
 )  # Succeeded(text) or Failure(Fail(HttpStatusError(...)))
 ```
 
-Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async` is cancelled, finalizers and scope releases run before the cancellation is re-raised, so an `asyncio.timeout` around `run_async` doesn't leak resources. Under asyncio a finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
+Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async` is cancelled, finalizers and scope releases run before the cancellation is re-raised, so an `asyncio.timeout` around `run_async` doesn't leak resources. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
 
 More examples: [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
 
