@@ -407,3 +407,39 @@ def test_finalizer_runs_within_its_provide_scope():
 
     assert E.run_sync(provided) == E.Succeeded((1, "outer"))
     assert actions == ["inner"]
+
+
+def test_coroutine_dies_under_run_sync():
+    async def never_awaited() -> int:
+        return 42
+
+    p = E.coroutine(never_awaited)
+
+    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+
+
+def test_coroutine_thunk_is_not_called_under_run_sync():
+    calls: list[int] = []
+
+    async def track() -> int:
+        return 42
+
+    def thunk():
+        calls.append(1)
+        return track()
+
+    E.run_sync(E.coroutine(thunk))
+
+    assert calls == []
+
+
+def test_finalizer_runs_when_coroutine_dies_under_run_sync():
+    actions: list[str] = []
+
+    async def never_awaited() -> int:
+        return 42
+
+    p = E.coroutine(never_awaited).on_exit(E.sync(lambda: actions.append("finalized")))
+
+    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+    assert actions == ["finalized"]
