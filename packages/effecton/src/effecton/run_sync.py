@@ -1,4 +1,4 @@
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, assert_never, final
 
@@ -59,29 +59,8 @@ class OnExitFrame:
 
 Frame = FlatMap[Any, Any, Any] | OnFailure[Any, Any, Any] | RestoreEnv | OnExitFrame
 
-type Steps = Generator[Callable[[], Awaitable[Any]], Node, Exit[Any, Any]]
-"""The interpreter's driver protocol.
-
-The interpreter yields the thunk of every Coroutine node it reaches and
-expects the driver to send back the outcome as a Success or FailCause
-node. Yielding the thunk rather than a live awaitable keeps coroutine
-creation in the driver, so a driver that cannot await never leaves an
-un-awaited coroutine behind.
-"""
-
 
 def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
-    steps = interpret(effect)
-
-    try:
-        next(steps)
-        while True:
-            steps.send(FailCause(cause=Die(defect=AsyncEffectInSyncRun())))
-    except StopIteration as e:
-        return e.value
-
-
-def interpret(effect: Effect[Any, Any, Any]) -> Steps:
     stack: list[Frame] = []
     env: dict[TypeForm[Any], Any] = {}
     current: Node = effect  # ty: ignore[invalid-assignment]
@@ -143,8 +122,8 @@ def interpret(effect: Effect[Any, Any, Any]) -> Steps:
                 except Exception as e:
                     current = FailCause(cause=Die(defect=e))
 
-            case Coroutine(fn):
-                current = yield fn
+            case Coroutine():
+                current = FailCause(cause=Die(defect=AsyncEffectInSyncRun()))
 
             case Require(requirement_type):
                 if requirement_type in env:
