@@ -107,7 +107,7 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                     current = Success(await fn())
                 except Exception as e:
                     current = FailCause(cause=Die(defect=e))
-                except BaseException as e:
+                except BaseException as e:  # is some kinda of cancellation error
                     if cancelled is None:
                         cancelled = e
                     current = FailCause(cause=Die(defect=e))
