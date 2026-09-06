@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import final
+from typing import Any, final
 
 import effecton as E
 
@@ -215,7 +215,15 @@ def test_attempt_async_is_lazy_and_reusable():
     assert calls == [1, 1]
 
 
-def test_cancellation_runs_finalizers_then_reraises():
+def assert_interrupted(exit: E.Exit[Any, Any]) -> None:
+    match exit:
+        case E.Failure(E.Interrupt(exception)):
+            assert isinstance(exception, asyncio.CancelledError)
+        case other:
+            raise AssertionError(other)
+
+
+def test_cancellation_runs_finalizers_then_returns_interrupt():
     actions: list[str] = []
 
     async def forever() -> None:
@@ -227,18 +235,13 @@ def test_cancellation_runs_finalizers_then_reraises():
 
     p = E.coroutine(forever).on_exit(E.coroutine(cleanup))
 
-    async def main() -> None:
+    async def main():
         task = asyncio.create_task(E.run_async(p))
         await asyncio.sleep(0)
         task.cancel()
-        await task
+        return await task
 
-    try:
-        asyncio.run(main())
-    except asyncio.CancelledError:
-        pass
-    else:
-        raise AssertionError("cancellation was swallowed")
+    assert_interrupted(asyncio.run(main()))
     assert actions == ["finalized"]
 
 
@@ -254,22 +257,17 @@ def test_cancellation_skips_catch_all():
 
     p = E.coroutine(forever).catch_all(handler)
 
-    async def main() -> None:
+    async def main():
         task = asyncio.create_task(E.run_async(p))
         await asyncio.sleep(0)
         task.cancel()
-        await task
+        return await task
 
-    try:
-        asyncio.run(main())
-    except asyncio.CancelledError:
-        pass
-    else:
-        raise AssertionError("cancellation was swallowed")
+    assert_interrupted(asyncio.run(main()))
     assert calls == []
 
 
-def test_timeout_around_run_async_releases_scope():
+def test_timeout_around_run_async_releases_scope_and_returns_interrupt():
     actions: list[str] = []
 
     async def forever() -> None:
@@ -281,16 +279,11 @@ def test_timeout_around_run_async_releases_scope():
     )
     p = conn.flat_map(lambda _: E.coroutine(forever)).scoped()
 
-    async def main() -> None:
+    async def main():
         async with asyncio.timeout(0.01):
-            await E.run_async(p)
+            return await E.run_async(p)
 
-    try:
-        asyncio.run(main())
-    except TimeoutError:
-        pass
-    else:
-        raise AssertionError("timeout did not fire")
+    assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]
 
 
@@ -308,7 +301,7 @@ def test_cancellation_during_release_lets_the_release_finish():
     )
     p = conn.scoped()
 
-    async def main() -> None:
+    async def main():
         task = asyncio.create_task(E.run_async(p))
         while not actions:
             await asyncio.sleep(0)
@@ -317,18 +310,32 @@ def test_cancellation_during_release_lets_the_release_finish():
         task.cancel()  # a repeated cancellation must not abort it either
         await asyncio.sleep(0)
         release_may_finish.set()
-        await task
+        return await task
 
-    try:
-        asyncio.run(main())
-    except asyncio.CancelledError:
-        pass
-    else:
-        raise AssertionError("cancellation was swallowed")
+    # The wrapped effect had already succeeded; the interruption still wins.
+    assert_interrupted(asyncio.run(main()))
     assert actions == ["release-start:conn", "release-done:conn"]
 
 
-def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_reraises():
+def test_interrupt_wins_over_a_finalizer_defect():
+    async def forever() -> None:
+        await asyncio.Event().wait()
+
+    async def bad_cleanup() -> None:
+        raise ValueError("cleanup failed")
+
+    p = E.coroutine(forever).on_exit(E.coroutine(bad_cleanup))
+
+    async def main():
+        task = asyncio.create_task(E.run_async(p))
+        await asyncio.sleep(0)
+        task.cancel()
+        return await task
+
+    assert_interrupted(asyncio.run(main()))
+
+
+def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_returns_interrupt():
     actions: list[str] = []
 
     conn = E.acquire_and_release(
@@ -336,23 +343,18 @@ def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_reraises():
         lambda _: E.sync(lambda: actions.append("released")),
     )
 
-    async def main() -> None:
+    async def main():
         cancelled_future = asyncio.get_running_loop().create_future()
         cancelled_future.cancel()
         p = conn.flat_map(lambda _: E.sync(cancelled_future.result)).scoped()
 
-        await E.run_async(p)
+        return await E.run_async(p)
 
-    try:
-        asyncio.run(main())
-    except asyncio.CancelledError:
-        pass
-    else:
-        raise AssertionError("cancellation was swallowed")
+    assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]
 
 
-def test_cancellation_raised_by_callback_runs_finalizers_then_reraises():
+def test_cancellation_raised_by_callback_runs_finalizers_then_returns_interrupt():
     actions: list[str] = []
 
     def boom(_: int) -> E.Effect[int]:
@@ -360,12 +362,7 @@ def test_cancellation_raised_by_callback_runs_finalizers_then_reraises():
 
     p = E.success(1).flat_map(boom).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    try:
-        asyncio.run(E.run_async(p))
-    except asyncio.CancelledError:
-        pass
-    else:
-        raise AssertionError("cancellation was swallowed")
+    assert_interrupted(asyncio.run(E.run_async(p)))
     assert actions == ["finalized"]
 
 

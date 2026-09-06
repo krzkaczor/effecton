@@ -49,10 +49,12 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
 
     A cancellation, or any other BaseException raised by an await, a
     thunk or a callback, unwinds the effect with an Interrupt cause so
-    finalizers run, and is then re-raised instead of being returned as
-    an Exit.
-    Finalizers are shielded: a cancellation that arrives while one is
-    awaiting is remembered and the finalizer runs to completion.
+    finalizers run, and the run settles as Failure(Interrupt(exception)).
+    The cancellation is consumed: a caller whose task should stop
+    re-raises the carried exception. Finalizers are shielded: a
+    cancellation that arrives while one is awaiting is remembered, the
+    finalizer runs to completion, and the interruption is applied once
+    it settles.
     """
     stack: list[Frame | Finalizing] = []
     env: dict[TypeForm[Any], Any] = {}
@@ -111,7 +113,11 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                             break
                         case Finalizing(outcome):
                             finalizing -= 1
-                            current = outcome
+                            current = (
+                                outcome
+                                if cancelled is None
+                                else FailCause(cause=Interrupt(exception=cancelled))
+                            )
                             break
                         case FlatMap():
                             current = guarded(run_fn_or_die, item.and_then, value)
@@ -121,8 +127,6 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case _:
                             assert_never(item)
                 else:
-                    if cancelled is not None:
-                        raise cancelled
                     return Succeeded(value=value)
 
             case FailCause(cause):
@@ -139,9 +143,14 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                             break
                         case Finalizing():
                             # The finalizer died; its defect replaces the
-                            # outcome it was finalizing.
+                            # outcome it was finalizing, unless a cancellation
+                            # arrived meanwhile: interruption is sticky.
                             finalizing -= 1
-                            continue
+                            if cancelled is not None:
+                                current = FailCause(
+                                    cause=Interrupt(exception=cancelled)
+                                )
+                                break
                         case FlatMap():
                             continue
                         case OnFailure():
@@ -153,8 +162,6 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case _:
                             assert_never(item)
                 else:
-                    if cancelled is not None:
-                        raise cancelled
                     return Failure(cause=cause)
 
             case FlatMap(first):

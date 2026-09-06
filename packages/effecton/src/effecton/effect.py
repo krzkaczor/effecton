@@ -36,9 +36,10 @@ class Interrupt:
     """The effect was cut short by a cancellation.
 
     Carries the BaseException that signalled it, such as
-    asyncio.CancelledError, so the runner can re-raise it once the
-    finalizers have run. Like Die, it is not an error: catch_all and
-    catch only handle Fail.
+    asyncio.CancelledError. The runner consumes the cancellation and
+    settles as Failure(Interrupt(exception)); a caller whose task should
+    stop re-raises the exception. Like Die, it is not an error: catch_all
+    and catch only handle Fail.
     """
 
     exception: BaseException
