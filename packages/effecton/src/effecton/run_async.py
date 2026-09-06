@@ -83,13 +83,19 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
             return unwind(e)
 
     async def awaited_uninterruptibly(fn: Callable[[], Awaitable[Any]]) -> Node:
-        try:
-            inner = asyncio.ensure_future(fn())
-        except BaseException as e:
-            return unwind(e)
+        async def run() -> Any:  # noqa: ANN401
+            return await fn()
 
-        # A cancellation of this task lands on the shield while the
-        # finalizer keeps running; remember it and keep waiting.
+        # The finalizer runs as its own task so a cancellation of this
+        # task lands on the shield instead of aborting it. It shares this
+        # task's Context rather than a copy, so context variables it sets
+        # or resets behave as if it ran inline.
+        task = asyncio.current_task()
+        inner = asyncio.get_running_loop().create_task(
+            run(), context=task.get_context() if task is not None else None
+        )
+
+        # Remember the cancellation and keep waiting for the finalizer.
         while not inner.done():
             try:
                 await asyncio.shield(inner)
@@ -113,11 +119,7 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                             break
                         case Finalizing(outcome):
                             finalizing -= 1
-                            current = (
-                                outcome
-                                if cancelled is None
-                                else FailCause(cause=Interrupt(exception=cancelled))
-                            )
+                            current = _interrupted(cancelled, finalizing) or outcome
                             break
                         case FlatMap():
                             current = guarded(run_fn_or_die, item.and_then, value)
@@ -143,13 +145,11 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                             break
                         case Finalizing():
                             # The finalizer died; its defect replaces the
-                            # outcome it was finalizing, unless a cancellation
-                            # arrived meanwhile: interruption is sticky.
+                            # outcome it was finalizing.
                             finalizing -= 1
-                            if cancelled is not None:
-                                current = FailCause(
-                                    cause=Interrupt(exception=cancelled)
-                                )
+                            interrupted = _interrupted(cancelled, finalizing)
+                            if interrupted is not None:
+                                current = interrupted
                                 break
                         case FlatMap():
                             continue
@@ -197,3 +197,16 @@ async def run_async[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
 
             case _:
                 assert_never(current)
+
+
+def _interrupted(cancelled: BaseException | None, finalizing: int) -> Node | None:
+    """The node to resume with once the outermost finalizer settles.
+
+    Interruption is sticky: a cancellation noted while finalizers ran is
+    applied as soon as the run becomes interruptible again, overriding a
+    resumed success or a finalizer defect. Inside a nested finalizer it
+    is deferred, so the enclosing finalizer runs to completion.
+    """
+    if cancelled is None or finalizing > 0:
+        return None
+    return FailCause(cause=Interrupt(exception=cancelled))

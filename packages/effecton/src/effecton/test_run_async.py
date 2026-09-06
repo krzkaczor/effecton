@@ -1,4 +1,7 @@
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, final
 
@@ -135,6 +138,35 @@ def test_scope_releases_across_await_points():
     assert actions == ["acquired", "released:conn"]
 
 
+def test_scoped_async_context_manager_restores_context():
+    value = ContextVar("value", default="before")
+    actions: list[str] = []
+
+    @asynccontextmanager
+    async def resource() -> AsyncIterator[str]:
+        token = value.set("inside")
+        try:
+            yield "resource"
+        finally:
+            value.reset(token)
+            actions.append("released")
+
+    async def main():
+        manager = resource()
+        p = E.acquire_and_release(
+            E.coroutine(manager.__aenter__),
+            lambda _: E.coroutine(lambda: manager.__aexit__(None, None, None)),
+        ).scoped()
+        result = await E.run_async(p)
+        return result, value.get()
+
+    result, restored_value = asyncio.run(main())
+
+    assert result == E.Succeeded("resource")
+    assert actions == ["released"]
+    assert restored_value == "before"
+
+
 def test_provide_scope_is_restored_across_await():
     inner = E.coroutine(lambda: double(1)).flat_map(lambda _: E.require(str))
     p = inner.provide(str)("inner").flat_map(
@@ -243,6 +275,33 @@ def test_cancellation_runs_finalizers_then_returns_interrupt():
 
     assert_interrupted(asyncio.run(main()))
     assert actions == ["finalized"]
+
+
+def test_cancellation_preserves_nested_finalizer_continuation():
+    actions: list[str] = []
+
+    async def main():
+        started = asyncio.Event()
+
+        async def forever() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        cleanup = (
+            E.success(None)
+            .on_exit(E.sync(lambda: actions.append("inner")))
+            .flat_map(lambda _: E.sync(lambda: actions.append("remaining")))
+        )
+        p = E.coroutine(forever).on_exit(cleanup)
+        task = asyncio.create_task(E.run_async(p))
+        await started.wait()
+        task.cancel()
+        return await task
+
+    result = asyncio.run(main())
+
+    assert_interrupted(result)
+    assert actions == ["inner", "remaining"]
 
 
 def test_cancellation_skips_catch_all():
