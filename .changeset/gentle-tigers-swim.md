@@ -1,5 +1,5 @@
 ---
-effecton: patch
+effecton: minor
 ---
 
 Add `run_async`, `coroutine` and `attempt_async` for awaitable-backed effects
