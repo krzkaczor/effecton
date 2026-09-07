@@ -35,23 +35,23 @@ failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
 assert_type(failing, E.Effect[Never, ParseError])
 
 
-# --- run_async_task produces an Exit matching the effect's channels ---
+# --- run_async_coroutine produces an Exit matching the effect's channels ---
 # Type-checked only; never called.
-async def _run_async_task_pins() -> None:
+async def _run_async_coroutine_pins() -> None:
     assert_type(
-        await E.run_async_task(E.coroutine(fetch)), E.Succeeded[int] | E.Failure
+        await E.run_async_coroutine(E.coroutine(fetch)), E.Succeeded[int] | E.Failure
     )
     assert_type(
-        await E.run_async_task(failing), E.Succeeded[Never] | E.Failure[ParseError]
-    )
-
-    # A pure-sync effect runs under run_async_task too.
-    assert_type(
-        await E.run_async_task(E.success(1)), E.Succeeded[Literal[1]] | E.Failure
+        await E.run_async_coroutine(failing), E.Succeeded[Never] | E.Failure[ParseError]
     )
 
-    # An unmet requirement makes the effect unrunnable under run_async_task as well.
-    await E.run_async_task(E.require(Db))  # ty: ignore[invalid-argument-type]
+    # A pure-sync effect runs under run_async_coroutine too.
+    assert_type(
+        await E.run_async_coroutine(E.success(1)), E.Succeeded[Literal[1]] | E.Failure
+    )
+
+    # An unmet requirement makes the effect unrunnable here as well.
+    await E.run_async_coroutine(E.require(Db))  # ty: ignore[invalid-argument-type]
 
 
 # --- run_async_exit returns the same Exit; run_async returns the value ---

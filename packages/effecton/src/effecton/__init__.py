@@ -20,7 +20,7 @@ from effecton.implicit_requirement import (
     provide_implicit,
     require_implicit,
 )
-from effecton.run_async import run_async, run_async_exit, run_async_task
+from effecton.run_async import run_async, run_async_coroutine, run_async_exit
 from effecton.run_sync import (
     AsyncEffectInSyncRun,
     MissingRequirement,
@@ -95,8 +95,8 @@ __all__ = [
     "require",
     "require_implicit",
     "run_async",
+    "run_async_coroutine",
     "run_async_exit",
-    "run_async_task",
     "run_sync",
     "run_sync_exit",
     "scoped",

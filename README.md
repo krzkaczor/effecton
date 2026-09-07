@@ -121,7 +121,7 @@ Effects are inert values; a runner interprets one. Each runner comes in a throwi
 | `run_sync_exit(effect)` | synchronously | `Exit[A, E]` |
 | `run_async(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | the value, raising on failure |
 | `run_async_exit(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | `Exit[A, E]` |
-| `await run_async_task(effect)` | inside a loop you already own | `Exit[A, E]` |
+| `await run_async_coroutine(effect)` | inside a loop you already own | `Exit[A, E]` |
 
 The throwing forms raise a typed failure as the error itself (every `EffectonError` is an `Exception`), re-raise an exception defect as it is, wrap any other defect in `UnhandledDefect`, and re-raise the exception carried by an interruption:
 
@@ -142,10 +142,10 @@ match E.run_sync_exit(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
         ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions, Interrupt(exception) for cancellations
 ```
 
-`run_async` and `run_async_exit` interpret the same effect under asyncio, awaiting every `coroutine` effect they reach. They own the event loop through `asyncio.run`, so they cannot be called from a running loop; `run_async_task` is the coroutine underneath, for a caller that already has one:
+`run_async` and `run_async_exit` interpret the same effect under asyncio, awaiting every `coroutine` effect they reach. They own the event loop through `asyncio.run`, so they cannot be called from a running loop; `run_async_coroutine` is the coroutine underneath, for a caller that already has one:
 
 ```python
-exit = await E.run_async_task(
+exit = await E.run_async_coroutine(
     effect
 )  # Exit[A, E], awaiting coroutine effects along the way
 ```
@@ -327,7 +327,7 @@ E.run_async_exit(
 )  # Succeeded(text) or Failure(Fail(HttpStatusError(...)))
 ```
 
-Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async_task` is cancelled, the effect unwinds with an `Interrupt` cause, which `catch_all` and `catch` skip like a `Die`: finalizers and scope releases run, and the run settles as `Failure(Interrupt(exception))`, so an `asyncio.timeout` around `run_async_task` doesn't leak resources and completes normally with that `Exit`. The cancellation is consumed by `run_async_task`; a caller whose task should stop re-raises the carried exception. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
+Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async_coroutine` is cancelled, the effect unwinds with an `Interrupt` cause, which `catch_all` and `catch` skip like a `Die`: finalizers and scope releases run, and the run settles as `Failure(Interrupt(exception))`, so an `asyncio.timeout` around `run_async_coroutine` doesn't leak resources and completes normally with that `Exit`. The cancellation is consumed by `run_async_coroutine`; a caller whose task should stop re-raises the carried exception. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
 
 More examples: [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
 

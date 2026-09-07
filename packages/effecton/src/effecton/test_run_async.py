@@ -219,7 +219,7 @@ def test_scoped_async_context_manager_restores_context():
             E.coroutine(manager.__aenter__),
             lambda _: E.coroutine(lambda: manager.__aexit__(None, None, None)),
         ).scoped()
-        result = await E.run_async_task(p)
+        result = await E.run_async_coroutine(p)
         return result, value.get()
 
     result, restored_value = asyncio.run(main())
@@ -328,7 +328,7 @@ def test_cancellation_runs_finalizers_then_returns_interrupt():
     p = E.coroutine(forever).on_exit(E.coroutine(cleanup))
 
     async def main():
-        task = asyncio.create_task(E.run_async_task(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -353,7 +353,7 @@ def test_cancellation_preserves_nested_finalizer_continuation():
             .flat_map(lambda _: E.sync(lambda: actions.append("remaining")))
         )
         p = E.coroutine(forever).on_exit(cleanup)
-        task = asyncio.create_task(E.run_async_task(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await started.wait()
         task.cancel()
         return await task
@@ -377,7 +377,7 @@ def test_cancellation_skips_catch_all():
     p = E.coroutine(forever).catch_all(handler)
 
     async def main():
-        task = asyncio.create_task(E.run_async_task(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -400,7 +400,7 @@ def test_timeout_around_run_async_releases_scope_and_returns_interrupt():
 
     async def main():
         async with asyncio.timeout(0.01):
-            return await E.run_async_task(p)
+            return await E.run_async_coroutine(p)
 
     assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]
@@ -421,7 +421,7 @@ def test_cancellation_during_release_lets_the_release_finish():
     p = conn.scoped()
 
     async def main():
-        task = asyncio.create_task(E.run_async_task(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         while not actions:
             await asyncio.sleep(0)
         task.cancel()
@@ -446,7 +446,7 @@ def test_interrupt_wins_over_a_finalizer_defect():
     p = E.coroutine(forever).on_exit(E.coroutine(bad_cleanup))
 
     async def main():
-        task = asyncio.create_task(E.run_async_task(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -467,7 +467,7 @@ def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_returns_interrup
         cancelled_future.cancel()
         p = conn.flat_map(lambda _: E.sync(cancelled_future.result)).scoped()
 
-        return await E.run_async_task(p)
+        return await E.run_async_coroutine(p)
 
     assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]

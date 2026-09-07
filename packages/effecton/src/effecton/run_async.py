@@ -48,7 +48,7 @@ def run_async[A, E: EffectonError](effect: Effect[A, E]) -> A:
     """Run an effect on a fresh asyncio loop and return its value.
 
     Owns the event loop through asyncio.run, so it cannot be called from
-    a running loop; use run_async_task there. A typed failure raises the
+    a running loop; use run_async_coroutine there. A typed failure raises the
     error itself, a defect re-raises the exception (or UnhandledDefect
     for a non-exception value) and an interruption re-raises the
     exception that signalled it. Use run_async_exit to receive the Exit
@@ -61,12 +61,12 @@ def run_async_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     """Run an effect on a fresh asyncio loop and return its Exit.
 
     Owns the event loop through asyncio.run, so it cannot be called from
-    a running loop; use run_async_task there.
+    a running loop; use run_async_coroutine there.
     """
-    return asyncio.run(run_async_task(effect))
+    return asyncio.run(run_async_coroutine(effect))
 
 
-async def run_async_task[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
+async def run_async_coroutine[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     """Interpret an effect under asyncio, awaiting every coroutine effect.
 
     This is the coroutine form for a caller that already owns a loop:
