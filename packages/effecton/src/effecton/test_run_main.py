@@ -132,13 +132,20 @@ def test_exception_defect_includes_original_traceback_and_chain(reports):
     assert info.value.code == 1
     [report] = reports
     message = report.getMessage()
-    assert message.startswith(
-        "Defect occurred: RuntimeError: outer\nTraceback (most recent call last):"
-    )
+    assert message.startswith("Defect occurred\nTraceback (most recent call last):")
     assert "in crash" in message
     assert "ValueError: original" in message
     assert "direct cause" in message
     assert "RuntimeError: outer" in message
+
+
+def test_unraised_exception_defect_reports_description_once(reports):
+    with pytest.raises(SystemExit) as info:
+        E.run_main(E.die(ValueError("x")))
+
+    assert info.value.code == 1
+    [report] = reports
+    assert report.getMessage() == "Defect occurred\nValueError: x"
 
 
 @pytest.mark.parametrize("defect", ["boom", {"reason": "boom"}, None])

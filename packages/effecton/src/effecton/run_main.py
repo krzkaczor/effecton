@@ -72,15 +72,12 @@ def run_main[A, E: EffectonError](effect: Effect[A, E]) -> A:
                     message = str(error)
                 case Die(defect):
                     failure = defect
-                    if isinstance(defect, BaseException):
-                        description = str(defect)
-                        summary = type(defect).__name__
-                        if description:
-                            summary += f": {description}"
-                        trace = "".join(traceback.format_exception(defect)).rstrip()
-                        message = f"Defect occurred: {summary}\n{trace}"
-                    else:
-                        message = f"Unhandled defect: {defect!r}"
+                    message = (
+                        "Defect occurred\n"
+                        + "".join(traceback.format_exception(defect)).rstrip()
+                        if isinstance(defect, BaseException)
+                        else f"Unhandled defect: {defect!r}"
+                    )
                 case Interrupt(exception):
                     if isinstance(exception, SystemExit):
                         raise exception
