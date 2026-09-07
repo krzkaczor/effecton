@@ -182,7 +182,7 @@ def sync[A](fn: Callable[[], A]) -> Effect[A]:
 
 
 def coroutine[A](fn: Callable[[], Awaitable[A]]) -> Effect[A]:
-    """Defer an awaitable; only the run_async family can interpret it.
+    """Defer an awaitable; run_main and the run_async family can interpret it.
 
     The thunk runs once per run of the effect and must build a fresh
     awaitable each time, because a coroutine object can be awaited only

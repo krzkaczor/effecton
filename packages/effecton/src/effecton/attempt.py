@@ -30,7 +30,7 @@ def attempt_async[A, E: EffectonError](
     once per run of the effect, like coroutine, and on_error maps an
     exception raised by the thunk or by the await into the typed error
     channel. Re-raise from on_error to keep an unexpected exception a
-    defect. Only the run_async family can interpret the result.
+    defect. run_main and the run_async family can interpret the result.
     """
 
     async def go() -> Effect[A, E]:

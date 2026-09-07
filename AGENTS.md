@@ -9,6 +9,7 @@ Verify every change as follows:
 - `uv run ut fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
 - Run everything through `uv run` (tasks via `uv run ut <task>`, defined in `[tool.ut.tasks]`), never through bare `python3`.
 - Type behavior is pinned in `src/effecton/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
+- Every new feature must include a changeset. For now, we do not follow SemVer: default to a patch bump unless the user requests otherwise. Create it with `uv run changeset add --package effecton --bump patch --message "Describe the change"`.
 
 ## Naming and API design
 

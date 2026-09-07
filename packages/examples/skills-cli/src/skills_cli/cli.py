@@ -19,18 +19,8 @@ def main(skill_url: str) -> None:
         .provide(Terminal.Protocol)(Terminal.Live())
     )
 
-    match E.run_sync_exit(runnable):
-        case E.Succeeded(value=skill_name):
-            typer.echo(f"Skill {skill_name} installed.")
-        case E.Failure(cause=E.Fail(error=error)):
-            typer.echo(str(error), err=True)
-            raise typer.Exit(code=1)
-        case E.Failure(cause=E.Die(defect=defect)):
-            if isinstance(defect, BaseException):
-                raise defect
-            raise RuntimeError(str(defect))
-        case E.Failure(cause=E.Interrupt(exception=exception)):
-            raise exception
+    skill_name = E.run_main(runnable)
+    typer.echo(f"Skill {skill_name} installed.")
 
 
 def run() -> None:

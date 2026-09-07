@@ -8,7 +8,6 @@ from changesets.shared import (
     pyproject_version,
     release_plan,
     repo,
-    runner,
     semver,
 )
 
@@ -20,6 +19,5 @@ __all__ = [
     "pyproject_version",
     "release_plan",
     "repo",
-    "runner",
     "semver",
 ]

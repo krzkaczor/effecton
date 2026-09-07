@@ -5,10 +5,10 @@ from typing import Annotated
 
 import typer
 
+import effecton as E
 from changesets.add import name_generator as NameGenerator
 from changesets.add.program import add_changeset
 from changesets.shared import file_system as FileSystem
-from changesets.shared.runner import execute
 from changesets.shared.semver import Bump
 
 
@@ -32,7 +32,7 @@ def add(
         typer.echo("The message must not be empty.", err=True)
         raise typer.Exit(code=2)
 
-    path = execute(
+    path = E.run_main(
         add_changeset(Path.cwd(), package, level, message)
         .provide(FileSystem.Protocol)(FileSystem.Live())
         .provide(NameGenerator.Protocol)(NameGenerator.Live())
