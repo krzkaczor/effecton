@@ -22,7 +22,7 @@ def run_main[A, E: EffectonError](effect: Effect[A, E]) -> A:
 
     Unhandled failures use the default effecton logger, independently of
     program-local logging requirements. Errors and defects exit with their
-    integer ``exit_code`` attribute, or 1. Interruptions are quiet: SIGTERM
+    integer ``exit_code`` attribute in 0..255, or 1. Interruptions are quiet: SIGTERM
     exits with 143, other interruptions with 130. An explicit SystemExit
     retains its code. Successful integers are values, not exit codes.
     """
@@ -90,7 +90,11 @@ def run_main[A, E: EffectonError](effect: Effect[A, E]) -> A:
             code = getattr(failure, "exit_code", 1)
             run_sync(log_error(message))
             raise SystemExit(
-                code if isinstance(code, int) and not isinstance(code, bool) else 1
+                code
+                if isinstance(code, int)
+                and not isinstance(code, bool)
+                and 0 <= code <= 255
+                else 1
             )
         case _:
             assert_never(outcome)

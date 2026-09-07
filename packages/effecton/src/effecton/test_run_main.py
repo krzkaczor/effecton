@@ -164,7 +164,20 @@ def test_custom_error_exit_code(reports, as_defect):
 
 
 @pytest.mark.parametrize(
-    "code, expected", [(7, 7), (0, 0), (True, 1), ("2", 1), (None, 1), (2.5, 1)]
+    "code, expected",
+    [
+        (7, 7),
+        (0, 0),
+        (255, 255),
+        (-1, 1),
+        (-256, 1),
+        (256, 1),
+        (512, 1),
+        (True, 1),
+        ("2", 1),
+        (None, 1),
+        (2.5, 1),
+    ],
 )
 def test_defect_exit_code_attribute(reports, code, expected):
     @dataclass
@@ -176,6 +189,35 @@ def test_defect_exit_code_attribute(reports, code, expected):
 
     assert info.value.code == expected
     assert len(reports) == 1
+
+
+def test_out_of_range_error_exit_code_does_not_become_process_success():
+    script = textwrap.dedent("""
+        from dataclasses import dataclass
+        from typing import ClassVar, final
+        import effecton as E
+
+        @final
+        @dataclass(frozen=True)
+        class InvalidInput(E.EffectonError):
+            exit_code: ClassVar[int] = 256
+
+            def __str__(self) -> str:
+                return "invalid input"
+
+        E.run_main(E.fail(InvalidInput()))
+    """)
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "ERROR invalid input" in result.stderr
 
 
 @pytest.mark.parametrize(
