@@ -1,4 +1,4 @@
-from collections.abc import Callable, Generator
+from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Never, final
 
@@ -30,7 +30,22 @@ class Die:
     defect: Any
 
 
-type Cause[E: EffectonError] = Fail[E] | Die
+@final
+@dataclass(frozen=True)
+class Interrupt:
+    """The effect was cut short by a cancellation.
+
+    Carries the BaseException that signalled it, such as
+    asyncio.CancelledError. The runner consumes the cancellation and
+    settles as Failure(Interrupt(exception)); a caller whose task should
+    stop re-raises the exception. Like Die, it is not an error: catch_all
+    and catch only handle Fail.
+    """
+
+    exception: BaseException
+
+
+type Cause[E: EffectonError] = Fail[E] | Die | Interrupt
 
 
 class Effect[A, E: EffectonError = Never, R = Never]:
@@ -93,6 +108,13 @@ class Sync[A](Effect[A]):
 
 @final
 @dataclass(frozen=True)
+class Coroutine[A](Effect[A]):
+    fn: Callable[[], Awaitable[A]]
+    kind: Literal["coroutine"] = "coroutine"
+
+
+@final
+@dataclass(frozen=True)
 class FailCause[E: EffectonError](Effect[Never, E]):
     cause: Cause[E]
     kind: Literal["fail"] = "fail"
@@ -141,6 +163,7 @@ class OnExit[A, E: EffectonError, R](Effect[A, E, R]):
 Node = (
     Success[Any]
     | Sync[Any]
+    | Coroutine[Any]
     | FailCause[Any]
     | FlatMap[Any, Any, Any]
     | OnFailure[Any, Any, Any]
@@ -156,6 +179,18 @@ def success[A](value: A) -> Effect[A]:
 
 def sync[A](fn: Callable[[], A]) -> Effect[A]:
     return Sync(fn)
+
+
+def coroutine[A](fn: Callable[[], Awaitable[A]]) -> Effect[A]:
+    """Defer an awaitable; only run_async can interpret the result.
+
+    The thunk runs once per run of the effect and must build a fresh
+    awaitable each time, because a coroutine object can be awaited only
+    once. Every exception, whether raised by the thunk or by the await,
+    becomes a defect; use attempt_async for typed failures. Interpreting
+    the effect with run_sync dies with AsyncEffectInSyncRun.
+    """
+    return Coroutine(fn)
 
 
 def fail[E: EffectonError](error: E) -> Effect[Never, E]:

@@ -3,6 +3,9 @@ from typing import final
 
 import effecton as E
 
+# Interrupt has no public constructor; the runner tests build the node directly.
+from effecton.effect import FailCause
+
 
 @final
 @dataclass(frozen=True)
@@ -407,3 +410,63 @@ def test_finalizer_runs_within_its_provide_scope():
 
     assert E.run_sync(provided) == E.Succeeded((1, "outer"))
     assert actions == ["inner"]
+
+
+def test_coroutine_dies_under_run_sync():
+    async def never_awaited() -> int:
+        return 42
+
+    p = E.coroutine(never_awaited)
+
+    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+
+
+def test_coroutine_thunk_is_not_called_under_run_sync():
+    calls: list[int] = []
+
+    async def track() -> int:
+        return 42
+
+    def thunk():
+        calls.append(1)
+        return track()
+
+    E.run_sync(E.coroutine(thunk))
+
+    assert calls == []
+
+
+def test_finalizer_runs_when_coroutine_dies_under_run_sync():
+    actions: list[str] = []
+
+    async def never_awaited() -> int:
+        return 42
+
+    p = E.coroutine(never_awaited).on_exit(E.sync(lambda: actions.append("finalized")))
+
+    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+    assert actions == ["finalized"]
+
+
+def test_interrupt_skips_catch_all():
+    calls: list[E.EffectonError] = []
+
+    def handler(e: E.EffectonError) -> E.Effect[int, E.EffectonError]:
+        calls.append(e)
+        return E.success(0)
+
+    interrupt = E.Interrupt(KeyboardInterrupt())
+    p = FailCause(cause=interrupt).catch_all(handler)
+
+    assert E.run_sync(p) == E.Failure(cause=interrupt)
+    assert calls == []
+
+
+def test_on_exit_runs_on_interrupt():
+    actions: list[str] = []
+
+    interrupt = E.Interrupt(KeyboardInterrupt())
+    p = FailCause(cause=interrupt).on_exit(E.sync(lambda: actions.append("finalized")))
+
+    assert E.run_sync(p) == E.Failure(cause=interrupt)
+    assert actions == ["finalized"]

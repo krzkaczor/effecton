@@ -5,9 +5,11 @@ from typing import Any, assert_never, final
 from typing_extensions import TypeForm
 
 from effecton.effect import (
+    Coroutine,
     Die,
     Effect,
     EffectonError,
+    Fail,
     FailCause,
     FlatMap,
     Node,
@@ -31,6 +33,15 @@ class MissingRequirement:
     """
 
     requirement_type: TypeForm[Any]
+
+
+@final
+@dataclass(frozen=True)
+class AsyncEffectInSyncRun:
+    """Defect raised when run_sync reaches a coroutine effect.
+
+    Only run_async can await; run this effect with run_async instead.
+    """
 
 
 @final
@@ -65,10 +76,10 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(_resume(current))  # ty: ignore[invalid-assignment]
+                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
-                            current = _run_fn_or_die(item.and_then, value)
+                            current = run_fn_or_die(item.and_then, value)
                             break
                         case OnFailure():
                             continue
@@ -85,13 +96,13 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(_resume(current))  # ty: ignore[invalid-assignment]
+                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
                             continue
                         case OnFailure():
-                            if not isinstance(cause, Die):
-                                current = _run_fn_or_die(item.handler, cause.error)
+                            if isinstance(cause, Fail):
+                                current = run_fn_or_die(item.handler, cause.error)
                                 break
                         case _:
                             assert_never(item)
@@ -112,11 +123,14 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                 except Exception as e:
                     current = FailCause(cause=Die(defect=e))
 
+            case Coroutine():
+                current = FailCause(cause=Die(defect=AsyncEffectInSyncRun()))
+
             case Require(requirement_type):
                 if requirement_type in env:
                     current = Success(env[requirement_type])
                 else:
-                    current = _default_or_die(requirement_type)
+                    current = default_or_die(requirement_type)
 
             case ProvideRequirement(first, requirement_type, requirement_impl):
                 stack.append(RestoreEnv(env))
@@ -131,7 +145,7 @@ def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                 assert_never(current)
 
 
-def _default_or_die(requirement_type: TypeForm[Any]) -> Node:
+def default_or_die(requirement_type: TypeForm[Any]) -> Node:
     if (
         isinstance(requirement_type, type)
         and issubclass(requirement_type, ImplicitRequirement)
@@ -146,7 +160,7 @@ def _default_or_die(requirement_type: TypeForm[Any]) -> Node:
     return FailCause(cause=Die(defect=MissingRequirement(requirement_type)))
 
 
-def _run_fn_or_die(f: Callable[[Any], Effect[Any, Any]], value: object) -> Node:
+def run_fn_or_die(f: Callable[[Any], Effect[Any, Any]], value: object) -> Node:
     try:
         return f(value)  # ty: ignore[invalid-return-type]
     except Exception as e:
@@ -154,7 +168,7 @@ def _run_fn_or_die(f: Callable[[Any], Effect[Any, Any]], value: object) -> Node:
 
 
 # Captures the current outcome by closure.
-def _resume(outcome: Node) -> Callable[[Any], Effect[Any, Any, Any]]:
+def resume(outcome: Node) -> Callable[[Any], Effect[Any, Any, Any]]:
     def resume(_: object) -> Effect[Any, Any, Any]:
         return outcome
 

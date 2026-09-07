@@ -120,10 +120,18 @@ match E.run_sync(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
     case E.Succeeded(value):
         ...
     case E.Failure(cause):
-        ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions
+        ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions, Interrupt(exception) for cancellations
 ```
 
-More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
+`run_async` is the awaiting counterpart. It interprets the same effect inside a coroutine, awaiting every `coroutine` effect it reaches, and returns the same `Exit`. It runs under asyncio:
+
+```python
+exit = await E.run_async(effect)  # Exit[A, E], awaiting coroutine effects along the way
+```
+
+Running an effect that contains a `coroutine` effect with `run_sync` doesn't raise: it settles as `Failure(Die(AsyncEffectInSyncRun()))`, and finalizers still run.
+
+More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py), [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
 
 ### Error handling
 
@@ -269,6 +277,39 @@ def parse_json(text: str) -> E.Effect[Any, InvalidJson]:
 
 More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_attempt.py).
 
+### Wrapping async code
+
+`coroutine` defers an awaitable the way `sync` defers a thunk: the thunk builds a fresh awaitable on every run, because a coroutine object can be awaited only once. Exceptions become defects. `attempt_async` is the `attempt` counterpart that maps expected exceptions into the error channel. Only `run_async` can interpret either:
+
+```python
+client = httpx.AsyncClient()
+
+E.coroutine(lambda: client.get(url))  # Effect[httpx.Response] — nothing awaited yet
+
+
+def get_text(url: str) -> E.Effect[str, HttpStatusError]:
+    async def go() -> str:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.text
+
+    def to_error(e: Exception) -> HttpStatusError:
+        if isinstance(e, httpx.HTTPStatusError):
+            return HttpStatusError(url=url, status_code=e.response.status_code)
+        raise e  # anything else stays a defect
+
+    return E.attempt_async(go, to_error)
+
+
+await E.run_async(
+    get_text("https://example.com")
+)  # Succeeded(text) or Failure(Fail(HttpStatusError(...)))
+```
+
+Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async` is cancelled, the effect unwinds with an `Interrupt` cause, which `catch_all` and `catch` skip like a `Die`: finalizers and scope releases run, and the run settles as `Failure(Interrupt(exception))`, so an `asyncio.timeout` around `run_async` doesn't leak resources and completes normally with that `Exit`. The cancellation is consumed by `run_async`; a caller whose task should stop re-raises the carried exception. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
+
+More examples: [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
+
 ## Standard library
 
 ### Logger
@@ -295,7 +336,7 @@ More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/mai
 ## Roadmap
 
 - [x] `ty` support
-- [ ] Support for async/sync code
+- [x] Support for async/sync code
 - [ ] Retries
 - [ ] Timeouts
 - [ ] `Random` implicit service

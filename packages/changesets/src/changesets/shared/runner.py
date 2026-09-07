@@ -24,3 +24,5 @@ def _render_failure(cause: E.Cause[E.EffectonError]) -> Never:
             if isinstance(defect, BaseException):
                 raise defect
             raise RuntimeError(str(defect))
+        case E.Interrupt(exception=exception):
+            raise exception

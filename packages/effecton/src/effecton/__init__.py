@@ -1,10 +1,12 @@
-from effecton.attempt import attempt
+from effecton.attempt import attempt, attempt_async
 from effecton.effect import (
     Cause,
     Die,
     Effect,
     EffectonError,
     Fail,
+    Interrupt,
+    coroutine,
     die,
     fail,
     require,
@@ -18,7 +20,8 @@ from effecton.implicit_requirement import (
     provide_implicit,
     require_implicit,
 )
-from effecton.run_sync import MissingRequirement, run_sync
+from effecton.run_async import run_async
+from effecton.run_sync import AsyncEffectInSyncRun, MissingRequirement, run_sync
 from effecton.std.logger import (
     CurrentLogAnnotations,
     CurrentLoggers,
@@ -42,6 +45,7 @@ from effecton.std.scope import Scope, acquire_and_release, add_finalizer, scoped
 from effecton.suspend import suspend
 
 __all__ = [
+    "AsyncEffectInSyncRun",
     "Cause",
     "CurrentLogAnnotations",
     "CurrentLogLevel",
@@ -55,6 +59,7 @@ __all__ = [
     "Fail",
     "Failure",
     "ImplicitRequirement",
+    "Interrupt",
     "LogData",
     "LogLevel",
     "MinimumLogLevel",
@@ -67,6 +72,8 @@ __all__ = [
     "add_finalizer",
     "annotate_logs",
     "attempt",
+    "attempt_async",
+    "coroutine",
     "die",
     "fail",
     "gen",
@@ -81,6 +88,7 @@ __all__ = [
     "provide_implicit",
     "require",
     "require_implicit",
+    "run_async",
     "run_sync",
     "scoped",
     "success",
