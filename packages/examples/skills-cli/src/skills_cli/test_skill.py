@@ -7,7 +7,7 @@ PLAIN_BODY = "---\nname: my-skill\n---\n\nsome body"
 
 
 def test_parse_splits_frontmatter_and_content():
-    result = E.run_sync(skill.parse(PLAIN_BODY))
+    result = E.run_sync_exit(skill.parse(PLAIN_BODY))
 
     assert isinstance(result, E.Succeeded)
     assert result.value.metadata == {"name": "my-skill"}
@@ -17,7 +17,7 @@ def test_parse_splits_frontmatter_and_content():
 def test_parse_fails_on_invalid_yaml():
     body = "---\nname: [unclosed\n---\n\nsome body"
 
-    result = E.run_sync(skill.parse(body))
+    result = E.run_sync_exit(skill.parse(body))
 
     assert isinstance(result, E.Failure)
     assert isinstance(result.cause, E.Fail)
@@ -51,7 +51,7 @@ def test_a_truthy_string_flag_is_not_disabled():
 def test_disable_model_invocation_sets_the_flag_and_keeps_the_body():
     post = frontmatter.loads(PLAIN_BODY)
 
-    result = E.run_sync(skill.disable_model_invocation(post))
+    result = E.run_sync_exit(skill.disable_model_invocation(post))
 
     # dumps re-serializes with sorted keys, so assert containment, not
     # equality.

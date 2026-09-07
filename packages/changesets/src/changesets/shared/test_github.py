@@ -17,7 +17,7 @@ from changesets.shared.github import NotAGitHubRemote, PullRequest
     ],
 )
 def test_parse_repository_accepts_github_remote_forms(url):
-    result = E.run_sync(github.parse_repository(url))
+    result = E.run_sync_exit(github.parse_repository(url))
 
     assert result == E.Succeeded(value="krzkaczor/effecton")
 
@@ -31,7 +31,7 @@ def test_parse_repository_accepts_github_remote_forms(url):
     ],
 )
 def test_parse_repository_rejects_non_github_remotes(url):
-    result = E.run_sync(github.parse_repository(url))
+    result = E.run_sync_exit(github.parse_repository(url))
 
     assert result == E.Failure(cause=E.Fail(NotAGitHubRemote(url=url)))
 

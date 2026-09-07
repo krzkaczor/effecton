@@ -45,7 +45,7 @@ def wire(fs, git=None):
 def test_no_changesets_is_a_no_op():
     fs = make_fs()
 
-    result = E.run_sync(wire(fs, make_git(origin=None)))
+    result = E.run_sync_exit(wire(fs, make_git(origin=None)))
 
     assert result == E.Succeeded(value=())
     assert fs.files == {CONFIG: CONFIG_TEXT, PYPROJECT: PYPROJECT_TEXT}
@@ -65,7 +65,7 @@ def test_applies_changesets_bumping_by_the_strongest_level():
         }
     )
 
-    result = E.run_sync(wire(fs, git))
+    result = E.run_sync_exit(wire(fs, git))
 
     assert result == E.Succeeded(
         value=(
@@ -95,7 +95,7 @@ def test_a_changeset_without_a_pull_request_is_rendered_unlinked():
     )
     git = make_git(subjects={CS_DIR / "one.md": "Fix a bug"})
 
-    result = E.run_sync(wire(fs, git))
+    result = E.run_sync_exit(wire(fs, git))
 
     assert isinstance(result, E.Succeeded)
     assert fs.files[CHANGELOG] == (
@@ -108,7 +108,7 @@ def test_a_major_changeset_bumps_to_the_next_major():
         extra_files={CS_DIR / "one.md": "---\neffecton: major\n---\n\nBreak it.\n"}
     )
 
-    result = E.run_sync(wire(fs))
+    result = E.run_sync_exit(wire(fs))
 
     assert result == E.Succeeded(
         value=(
@@ -131,7 +131,7 @@ def test_prepends_to_an_existing_changelog():
     )
     git = make_git(subjects={CS_DIR / "one.md": "Fix a bug (#6)"})
 
-    result = E.run_sync(wire(fs, git))
+    result = E.run_sync_exit(wire(fs, git))
 
     assert result == E.Succeeded(
         value=(
@@ -158,7 +158,7 @@ def test_a_changeset_for_an_unknown_package_fails_before_writing():
     changeset_text = "---\nother: minor\n---\n\nNot ours.\n"
     fs = make_fs(extra_files={changeset_path: changeset_text})
 
-    result = E.run_sync(wire(fs))
+    result = E.run_sync_exit(wire(fs))
 
     assert result == E.Failure(
         cause=E.Fail(UnknownPackage(path=changeset_path, package="other"))
@@ -176,7 +176,7 @@ def test_a_non_github_origin_fails_before_writing():
     fs = make_fs(extra_files={changeset_path: changeset_text})
     origin = "git@gitlab.com:krzkaczor/effecton.git"
 
-    result = E.run_sync(wire(fs, make_git(origin=origin)))
+    result = E.run_sync_exit(wire(fs, make_git(origin=origin)))
 
     assert result == E.Failure(cause=E.Fail(NotAGitHubRemote(url=origin)))
     assert fs.files == {
@@ -194,7 +194,7 @@ def test_a_missing_version_line_fails_before_writing():
         extra_files={changeset_path: changeset_text, PYPROJECT: broken_pyproject}
     )
 
-    result = E.run_sync(wire(fs))
+    result = E.run_sync_exit(wire(fs))
 
     assert result == E.Failure(cause=E.Fail(MissingVersionLine(path=PYPROJECT)))
     assert fs.files == {

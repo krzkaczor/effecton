@@ -9,7 +9,7 @@ def capture() -> tuple[list[E.LogData], E.CurrentLoggers]:
 def test_log_info_reaches_the_provided_logger():
     entries, loggers = capture()
 
-    assert E.run_sync(
+    assert E.run_sync_exit(
         E.provide_implicit(E.log_info("hello", 42), loggers)
     ) == E.Succeeded(value=None)
 
@@ -22,7 +22,7 @@ def test_log_info_reaches_the_provided_logger():
 def test_debug_is_filtered_by_the_default_minimum():
     entries, loggers = capture()
 
-    E.run_sync(E.provide_implicit(E.log_debug("quiet"), loggers))
+    E.run_sync_exit(E.provide_implicit(E.log_debug("quiet"), loggers))
 
     assert entries == []
 
@@ -34,7 +34,7 @@ def test_debug_passes_with_a_lower_minimum():
         E.MinimumLogLevel(E.LogLevel.DEBUG),
     )
 
-    E.run_sync(program)
+    E.run_sync_exit(program)
 
     assert [e.log_level for e in entries] == [E.LogLevel.DEBUG]
 
@@ -46,7 +46,7 @@ def test_none_silences_even_fatal():
         E.MinimumLogLevel(E.LogLevel.NONE),
     )
 
-    E.run_sync(program)
+    E.run_sync_exit(program)
 
     assert entries == []
 
@@ -58,7 +58,7 @@ def test_all_passes_even_trace():
         E.MinimumLogLevel(E.LogLevel.ALL),
     )
 
-    E.run_sync(program)
+    E.run_sync_exit(program)
 
     assert [e.log_level for e in entries] == [E.LogLevel.TRACE]
 
@@ -66,7 +66,7 @@ def test_all_passes_even_trace():
 def test_bare_log_uses_current_log_level():
     entries, loggers = capture()
 
-    E.run_sync(E.provide_implicit(E.log("plain"), loggers))
+    E.run_sync_exit(E.provide_implicit(E.log("plain"), loggers))
 
     assert [e.log_level for e in entries] == [E.LogLevel.INFO]
 
@@ -77,7 +77,7 @@ def test_bare_log_uses_current_log_level():
         E.CurrentLogLevel(E.LogLevel.DEBUG),
     )
 
-    E.run_sync(program)
+    E.run_sync_exit(program)
 
     assert entries2 == []
 
@@ -88,7 +88,7 @@ def test_annotate_logs_merges_and_restores():
         lambda _: E.log_info("outside")
     )
 
-    E.run_sync(E.provide_implicit(annotated_then_bare, loggers))
+    E.run_sync_exit(E.provide_implicit(annotated_then_bare, loggers))
 
     inside, outside = entries
     assert inside.annotations == {"user_id": 1}
@@ -102,7 +102,7 @@ def test_nested_annotations_merge_and_inner_wins():
         request="r1",
     )
 
-    E.run_sync(E.provide_implicit(program, loggers))
+    E.run_sync_exit(E.provide_implicit(program, loggers))
 
     [entry] = entries
     assert entry.annotations == {"request": "r2", "span": "s"}
@@ -117,7 +117,7 @@ def test_loggers_run_in_tuple_order():
         )
     )
 
-    E.run_sync(E.provide_implicit(E.log_info("x"), loggers))
+    E.run_sync_exit(E.provide_implicit(E.log_info("x"), loggers))
 
     assert order == ["first", "second"]
 
@@ -126,7 +126,7 @@ def test_log_effects_are_reusable_values():
     entries, loggers = capture()
     effect = E.provide_implicit(E.log_info("again"), loggers)
 
-    E.run_sync(effect)
-    E.run_sync(effect)
+    E.run_sync_exit(effect)
+    E.run_sync_exit(effect)
 
     assert len(entries) == 2

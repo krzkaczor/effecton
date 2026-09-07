@@ -13,15 +13,20 @@ from effecton.effect import (
     success,
     sync,
 )
-from effecton.exit import Exit, Failure, Succeeded
+from effecton.exit import Exit, Failure, Succeeded, UnhandledDefect
 from effecton.gen import EffectGen, gen
 from effecton.implicit_requirement import (
     ImplicitRequirement,
     provide_implicit,
     require_implicit,
 )
-from effecton.run_async import run_async
-from effecton.run_sync import AsyncEffectInSyncRun, MissingRequirement, run_sync
+from effecton.run_async import run_async, run_async_exit, run_async_task
+from effecton.run_sync import (
+    AsyncEffectInSyncRun,
+    MissingRequirement,
+    run_sync,
+    run_sync_exit,
+)
 from effecton.std.logger import (
     CurrentLogAnnotations,
     CurrentLoggers,
@@ -68,6 +73,7 @@ __all__ = [
     "Scope",
     "Severity",
     "Succeeded",
+    "UnhandledDefect",
     "acquire_and_release",
     "add_finalizer",
     "annotate_logs",
@@ -89,7 +95,10 @@ __all__ = [
     "require",
     "require_implicit",
     "run_async",
+    "run_async_exit",
+    "run_async_task",
     "run_sync",
+    "run_sync_exit",
     "scoped",
     "success",
     "suspend",

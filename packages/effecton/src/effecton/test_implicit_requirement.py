@@ -15,7 +15,7 @@ class Greeting(E.ImplicitRequirement):
 
 
 def test_falls_back_to_default_when_nothing_is_provided():
-    assert E.run_sync(E.require_implicit(Greeting)) == E.Succeeded(
+    assert E.run_sync_exit(E.require_implicit(Greeting)) == E.Succeeded(
         value=Greeting("hello")
     )
 
@@ -33,8 +33,8 @@ def test_default_is_memoized_across_runs():
             calls.append(1)
             return Counted(0)
 
-    assert E.run_sync(E.require_implicit(Counted)) == E.Succeeded(value=Counted(0))
-    assert E.run_sync(E.require_implicit(Counted)) == E.Succeeded(value=Counted(0))
+    assert E.run_sync_exit(E.require_implicit(Counted)) == E.Succeeded(value=Counted(0))
+    assert E.run_sync_exit(E.require_implicit(Counted)) == E.Succeeded(value=Counted(0))
 
     assert len(calls) == 1
 
@@ -42,7 +42,7 @@ def test_default_is_memoized_across_runs():
 def test_provide_implicit_overrides_the_default():
     program = E.provide_implicit(E.require_implicit(Greeting), Greeting("hi"))
 
-    assert E.run_sync(program) == E.Succeeded(value=Greeting("hi"))
+    assert E.run_sync_exit(program) == E.Succeeded(value=Greeting("hi"))
 
 
 def test_override_is_scoped_to_the_wrapped_effect():
@@ -51,7 +51,9 @@ def test_override_is_scoped_to_the_wrapped_effect():
         lambda first: E.require_implicit(Greeting).map(lambda second: (first, second))
     )
 
-    assert E.run_sync(after) == E.Succeeded(value=(Greeting("hi"), Greeting("hello")))
+    assert E.run_sync_exit(after) == E.Succeeded(
+        value=(Greeting("hi"), Greeting("hello"))
+    )
 
 
 def test_nested_overrides_shadow():
@@ -63,7 +65,7 @@ def test_nested_overrides_shadow():
         Greeting("outer"),
     )
 
-    assert E.run_sync(outer) == E.Succeeded(
+    assert E.run_sync_exit(outer) == E.Succeeded(
         value=(Greeting("inner"), Greeting("outer"))
     )
 
@@ -71,7 +73,7 @@ def test_nested_overrides_shadow():
 def test_override_via_provide():
     program = E.require_implicit(Greeting).provide(Greeting)(Greeting("provided"))
 
-    assert E.run_sync(program) == E.Succeeded(value=Greeting("provided"))
+    assert E.run_sync_exit(program) == E.Succeeded(value=Greeting("provided"))
 
 
 def test_raising_default_is_a_defect():
@@ -84,7 +86,9 @@ def test_raising_default_is_a_defect():
         def default(cls) -> Broken:
             raise boom
 
-    assert E.run_sync(E.require_implicit(Broken)) == E.Failure(cause=E.Die(defect=boom))
+    assert E.run_sync_exit(E.require_implicit(Broken)) == E.Failure(
+        cause=E.Die(defect=boom)
+    )
 
 
 def test_requiring_the_protocol_itself_is_a_missing_requirement():
@@ -92,7 +96,7 @@ def test_requiring_the_protocol_itself_is_a_missing_requirement():
     # default() returns None; the interpreter refuses it instead of
     # caching garbage.
     protocol_as_key = cast(Any, E.ImplicitRequirement)
-    assert E.run_sync(E.require(protocol_as_key)) == E.Failure(
+    assert E.run_sync_exit(E.require(protocol_as_key)) == E.Failure(
         cause=E.Die(defect=E.MissingRequirement(E.ImplicitRequirement))
     )
 
@@ -102,6 +106,6 @@ def test_plain_missing_requirement_still_dies():
     class Db:
         url: str
 
-    assert E.run_sync(cast(Any, E.require(Db))) == E.Failure(
+    assert E.run_sync_exit(cast(Any, E.require(Db))) == E.Failure(
         cause=E.Die(defect=E.MissingRequirement(Db))
     )

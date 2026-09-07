@@ -37,7 +37,7 @@ needs_three = needs_two.flat_map(
 # Providing the only requirement yields a runnable effect (R = Never).
 runnable_one = E.require(Db).provide(Db)(Db("postgres://x"))
 assert_type(runnable_one, E.Effect[Db])
-assert_type(E.run_sync(runnable_one), E.Succeeded[Db] | E.Failure)
+assert_type(E.run_sync_exit(runnable_one), E.Succeeded[Db] | E.Failure)
 
 # Partial provision is a real subtraction: the remainder stays in R and
 # the half-provided effect is an ordinary value.
@@ -54,7 +54,7 @@ runnable_three = (
 )
 assert_type(runnable_three, E.Effect[tuple[Db, Logger, Cache]])
 assert_type(
-    E.run_sync(runnable_three), E.Succeeded[tuple[Db, Logger, Cache]] | E.Failure
+    E.run_sync_exit(runnable_three), E.Succeeded[tuple[Db, Logger, Cache]] | E.Failure
 )
 reordered = (
     needs_three.provide(Cache)(Cache(1))
@@ -111,8 +111,8 @@ assert_type(E.require(Greeter).provide(Greeter)(LiveGreeter()), E.Effect[Greeter
 # partially provided one.
 # Type-checked only; never called.
 def _unprovided_is_not_runnable() -> None:
-    E.run_sync(needs_three)  # ty: ignore[invalid-argument-type]
-    E.run_sync(partially_provided)  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(needs_three)  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(partially_provided)  # ty: ignore[invalid-argument-type]
 
 
 # The implementation must match the bound requirement type: provide is

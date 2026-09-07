@@ -27,7 +27,7 @@ def _simple() -> E.EffectGen[int]:
 
 
 assert_type(_simple(), E.Effect[int])
-assert_type(E.run_sync(_simple()), E.Succeeded[int] | E.Failure)
+assert_type(E.run_sync_exit(_simple()), E.Succeeded[int] | E.Failure)
 
 
 # The error channel flows from the annotated yield type.
@@ -40,7 +40,7 @@ def _failing() -> E.EffectGen[int, ParseError]:
 
 
 assert_type(_failing(), E.Effect[int, ParseError])
-assert_type(E.run_sync(_failing()), E.Succeeded[int] | E.Failure[ParseError])
+assert_type(E.run_sync_exit(_failing()), E.Succeeded[int] | E.Failure[ParseError])
 
 # catch_all composes over a gen effect like any other.
 assert_type(_failing().catch_all(lambda _: E.success(0)), E.Effect[int])
@@ -113,7 +113,7 @@ must_be_int_gen: E.Effect[str] = _simple()  # ty: ignore[invalid-assignment]
 # A gen effect with unmet requirements is not runnable.
 # Type-checked only; never called.
 def _unprovided_gen_is_not_runnable() -> None:
-    E.run_sync(_needs_db())  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(_needs_db())  # ty: ignore[invalid-argument-type]
 
 
 # The yield from result really is typed, not Any: a wrong annotation is

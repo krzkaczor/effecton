@@ -4,14 +4,14 @@ from changesets.shared.semver import InvalidVersion, Version
 
 
 def test_parses_a_strict_version():
-    result = E.run_sync(semver.parse("effecton", "1.22.333"))
+    result = E.run_sync_exit(semver.parse("effecton", "1.22.333"))
 
     assert result == E.Succeeded(value=Version(major=1, minor=22, patch=333))
 
 
 def test_rejects_anything_but_x_y_z():
     for value in ["1.2", "1.2.3.4", "v1.2.3", "1.2.3-rc.1", "", "one.two.three"]:
-        result = E.run_sync(semver.parse("effecton", value))
+        result = E.run_sync_exit(semver.parse("effecton", value))
 
         assert result == E.Failure(
             cause=E.Fail(InvalidVersion(package="effecton", value=value))

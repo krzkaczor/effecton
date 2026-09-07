@@ -25,13 +25,13 @@ def test_returns_the_latest_changelog_section():
     text = "# effecton\n\n## 0.2.0\n\n- New stuff.\n\n## 0.1.0\n\n- Old stuff.\n"
     fs = make_fs(extra_files={CHANGELOG: text})
 
-    result = E.run_sync(wire(fs))
+    result = E.run_sync_exit(wire(fs))
 
     assert result == E.Succeeded(value="## 0.2.0\n\n- New stuff.\n")
 
 
 def test_fails_when_the_changelog_is_missing():
-    result = E.run_sync(wire(make_fs()))
+    result = E.run_sync_exit(wire(make_fs()))
 
     assert result == E.Failure(cause=E.Fail(NoReleasedVersion(package="effecton")))
 
@@ -39,13 +39,13 @@ def test_fails_when_the_changelog_is_missing():
 def test_fails_when_the_changelog_has_no_sections():
     fs = make_fs(extra_files={CHANGELOG: "# effecton\n"})
 
-    result = E.run_sync(wire(fs))
+    result = E.run_sync_exit(wire(fs))
 
     assert result == E.Failure(cause=E.Fail(NoReleasedVersion(package="effecton")))
 
 
 def test_fails_for_an_unknown_package():
-    result = E.run_sync(wire(make_fs(), package="nope"))
+    result = E.run_sync_exit(wire(make_fs(), package="nope"))
 
     assert result == E.Failure(
         cause=E.Fail(UnknownPackage(path=CONFIG, package="nope"))

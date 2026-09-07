@@ -41,7 +41,7 @@ def check_secret() -> E.EffectGen[
 # program can be executed only after its requirements are provided
 program = check_secret().provide(HttpClient.Protocol)(HttpClient.Live())
 
-match E.run_sync(program):
+match E.run_sync_exit(program):
     case E.Succeeded(value):
         print(value)  # "hunter2"
     case E.Failure(cause):
@@ -113,23 +113,44 @@ More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/m
 
 ### Running effects
 
-Effects are inert values; `run_sync` interprets one and returns an `Exit`:
+Effects are inert values; a runner interprets one. Each runner comes in a throwing form that returns the value and an `_exit` form that returns an `Exit`:
+
+| Runner | Runs | Returns |
+|---|---|---|
+| `run_sync(effect)` | synchronously | the value, raising on failure |
+| `run_sync_exit(effect)` | synchronously | `Exit[A, E]` |
+| `run_async(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | the value, raising on failure |
+| `run_async_exit(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | `Exit[A, E]` |
+| `await run_async_task(effect)` | inside a loop you already own | `Exit[A, E]` |
+
+The throwing forms raise a typed failure as the error itself (every `EffectonError` is an `Exception`), re-raise an exception defect as it is, wrap any other defect in `UnhandledDefect`, and re-raise the exception carried by an interruption:
 
 ```python
-match E.run_sync(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
+try:
+    value = E.run_sync(effect)  # A
+except HttpStatusError as e:  # a typed failure
+    ...
+```
+
+The `_exit` forms never raise; they return an `Exit` to match on:
+
+```python
+match E.run_sync_exit(effect):  # Exit[A, E] = Succeeded[A] | Failure[E]
     case E.Succeeded(value):
         ...
     case E.Failure(cause):
         ...  # cause is Fail(error) for typed failures, Die(defect) for unexpected exceptions, Interrupt(exception) for cancellations
 ```
 
-`run_async` is the awaiting counterpart. It interprets the same effect inside a coroutine, awaiting every `coroutine` effect it reaches, and returns the same `Exit`. It runs under asyncio:
+`run_async` and `run_async_exit` interpret the same effect under asyncio, awaiting every `coroutine` effect they reach. They own the event loop through `asyncio.run`, so they cannot be called from a running loop; `run_async_task` is the coroutine underneath, for a caller that already has one:
 
 ```python
-exit = await E.run_async(effect)  # Exit[A, E], awaiting coroutine effects along the way
+exit = await E.run_async_task(
+    effect
+)  # Exit[A, E], awaiting coroutine effects along the way
 ```
 
-Running an effect that contains a `coroutine` effect with `run_sync` doesn't raise: it settles as `Failure(Die(AsyncEffectInSyncRun()))`, and finalizers still run.
+Running an effect that contains a `coroutine` effect synchronously doesn't await it: `run_sync_exit` settles as `Failure(Die(AsyncEffectInSyncRun()))`, `run_sync` raises `AsyncEffectInSyncRun`, and finalizers still run in both cases.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py), [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
 
@@ -142,7 +163,7 @@ p = E.fail(OopsError(msg="oops")).catch_all(
     lambda e: E.success(f"recovered from {e.msg}")
 )  # Effect[str] — the error channel is now Never
 
-E.run_sync(p)  # Succeeded("recovered from oops")
+E.run_sync(p)  # "recovered from oops"
 ```
 
 Use `catch` to handle one error type and leave the rest in the error channel. The handler receives the narrowed error, and defects (`Die`) pass through untouched:
@@ -165,7 +186,7 @@ More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/m
 
 ### Requirements and providing them
 
-`require(T)` reads a dependency and records it in the `R` channel; composing effects unions their requirements, exactly like errors. `run_sync` only accepts `Effect[A, E]`, so running an effect with unmet requirements is a type error, not a runtime surprise.
+`require(T)` reads a dependency and records it in the `R` channel; composing effects unions their requirements, exactly like errors. the runners only accept `Effect[A, E]`, so running an effect with unmet requirements is a type error, not a runtime surprise.
 
 ```python
 @dataclass(frozen=True)
@@ -177,10 +198,10 @@ needs_db = E.require(Db).map(lambda db: db.url)  # Effect[str, Never, Db]
 
 program = needs_db.provide(Db)(Db("postgres://x"))  # Effect[str] — runnable
 
-E.run_sync(program)  # Succeeded("postgres://x")
+E.run_sync(program)  # "postgres://x"
 ```
 
-`provide(T)(impl)` subtracts the provided type from `R`, so requirements can be provided one at a time, anywhere in the program — a partially provided effect is an ordinary value carrying the remainder in `R`, and `run_sync` accepts it only once `R` reaches `Never`.
+`provide(T)(impl)` subtracts the provided type from `R`, so requirements can be provided one at a time, anywhere in the program — a partially provided effect is an ordinary value carrying the remainder in `R`, and the runners accept it only once `R` reaches `Never`.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py).
 
@@ -199,9 +220,7 @@ class Greeting(E.ImplicitRequirement):
         return Greeting("hello")
 
 
-E.run_sync(
-    E.require_implicit(Greeting)
-)  # Succeeded(Greeting("hello")) — nothing provided
+E.run_sync(E.require_implicit(Greeting))  # Greeting("hello") — nothing provided
 
 # override for a sub-effect only; the env is restored when it settles
 E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
@@ -248,7 +267,7 @@ def total(n: int) -> E.EffectGen[int, OopsError]:
     return a + n
 
 
-E.run_sync(total(22))  # Succeeded(42)
+E.run_sync(total(22))  # 42
 ```
 
 A failing yielded effect abandons the generator, so `try/except` around a `yield` never observes effect failures — use `catch` or `catch_all` on the resulting effect instead.
@@ -279,7 +298,7 @@ More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/ma
 
 ### Wrapping async code
 
-`coroutine` defers an awaitable the way `sync` defers a thunk: the thunk builds a fresh awaitable on every run, because a coroutine object can be awaited only once. Exceptions become defects. `attempt_async` is the `attempt` counterpart that maps expected exceptions into the error channel. Only `run_async` can interpret either:
+`coroutine` defers an awaitable the way `sync` defers a thunk: the thunk builds a fresh awaitable on every run, because a coroutine object can be awaited only once. Exceptions become defects. `attempt_async` is the `attempt` counterpart that maps expected exceptions into the error channel. Only the `run_async` family can interpret either:
 
 ```python
 client = httpx.AsyncClient()
@@ -301,12 +320,14 @@ def get_text(url: str) -> E.Effect[str, HttpStatusError]:
     return E.attempt_async(go, to_error)
 
 
-await E.run_async(
+E.run_async(get_text("https://example.com"))  # text, or raises HttpStatusError
+
+E.run_async_exit(
     get_text("https://example.com")
 )  # Succeeded(text) or Failure(Fail(HttpStatusError(...)))
 ```
 
-Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async` is cancelled, the effect unwinds with an `Interrupt` cause, which `catch_all` and `catch` skip like a `Die`: finalizers and scope releases run, and the run settles as `Failure(Interrupt(exception))`, so an `asyncio.timeout` around `run_async` doesn't leak resources and completes normally with that `Exit`. The cancellation is consumed by `run_async`; a caller whose task should stop re-raises the carried exception. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
+Inside `@E.gen` bodies, `yield from E.coroutine(...)` works like any other effect; the generator itself stays synchronous. If the task running `run_async_task` is cancelled, the effect unwinds with an `Interrupt` cause, which `catch_all` and `catch` skip like a `Die`: finalizers and scope releases run, and the run settles as `Failure(Interrupt(exception))`, so an `asyncio.timeout` around `run_async_task` doesn't leak resources and completes normally with that `Exit`. The cancellation is consumed by `run_async_task`; a caller whose task should stop re-raises the carried exception. A finalizer that is mid-await when the cancellation arrives is shielded and runs to completion, and a cancellation raised from a synchronous thunk or callback, such as a cancelled future's `result()`, unwinds the same way.
 
 More examples: [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
 

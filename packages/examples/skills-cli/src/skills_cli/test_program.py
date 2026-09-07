@@ -40,7 +40,7 @@ def test_installs_an_already_slash_command_skill_without_prompting():
     terminal = Terminal.Test()
     entries, program = wire(fs, http, terminal)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="my-skill")
     assert terminal.prompts == []
@@ -60,7 +60,7 @@ def test_converts_to_a_slash_command_when_confirmed():
     terminal = Terminal.Test(answer=True)
     _, program = wire(fs, http, terminal)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="my-skill")
     assert terminal.prompts == [
@@ -77,7 +77,7 @@ def test_keeps_the_body_verbatim_when_conversion_is_declined():
     terminal = Terminal.Test(answer=False)
     _, program = wire(fs, http, terminal)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="my-skill")
     assert fs.files == {SKILL_DIR / "SKILL.md": PLAIN_BODY}
@@ -88,7 +88,7 @@ def test_warns_when_the_skill_dir_already_exists():
     http = HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
     entries, program = wire(fs, http, Terminal.Test())
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="my-skill")
     assert ("Skill dir already exists:", SKILL_DIR) in [
@@ -102,7 +102,7 @@ def test_skips_an_already_existing_symlink():
     http = HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
     entries, program = wire(fs, http, Terminal.Test())
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="my-skill")
     assert fs.links == {LINK: existing_target}
@@ -116,7 +116,7 @@ def test_an_invalid_url_fails_before_touching_anything():
     url = "https://gitlab.com/octo/my-skill/blob/main/SKILL.md"
     _, program = wire(fs, http, terminal, url=url)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Failure(
         cause=E.Fail(parse_url.UnsupportedHost(url=url, host="gitlab.com"))
@@ -130,7 +130,7 @@ def test_an_http_failure_propagates():
     fs = FileSystem.Test()
     _, program = wire(fs, HttpClient.Test(), Terminal.Test())
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Failure(
         cause=E.Fail(HttpClient.HttpStatusError(url=RAW_URL, status_code=404))

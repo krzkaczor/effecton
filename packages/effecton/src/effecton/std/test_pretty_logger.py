@@ -38,7 +38,7 @@ def captured_pretty_records() -> Iterator[list[logging.LogRecord]]:
 
 def test_emits_on_the_pretty_logger_with_annotations():
     with captured_pretty_records() as records:
-        E.run_sync(E.annotate_logs(E.log_info("hello", 42), user_id=1))
+        E.run_sync_exit(E.annotate_logs(E.log_info("hello", 42), user_id=1))
 
     [record] = records
     assert record.name == "effecton.pretty"
@@ -51,7 +51,7 @@ def test_maps_trace_to_level_5():
     program = E.provide_implicit(E.log_trace("deep"), E.MinimumLogLevel(E.LogLevel.ALL))
 
     with captured_pretty_records() as records:
-        E.run_sync(program)
+        E.run_sync_exit(program)
 
     [record] = records
     assert record.levelno == 5
@@ -60,7 +60,7 @@ def test_maps_trace_to_level_5():
 
 def test_maps_fatal_to_critical():
     with captured_pretty_records() as records:
-        E.run_sync(E.log_fatal("boom"))
+        E.run_sync_exit(E.log_fatal("boom"))
 
     [record] = records
     assert record.levelno == logging.CRITICAL
@@ -70,7 +70,7 @@ def test_maps_fatal_to_critical():
 # straight to stderr, so `uv run pytest` shows it (-s is in addopts).
 def test_looks_good():
     error = InstallFailed(url="https://example.com/SKILL.md", status_code=503)
-    failure = E.run_sync(E.die(ZeroDivisionError("boom")))
+    failure = E.run_sync_exit(E.die(ZeroDivisionError("boom")))
     assert isinstance(failure, E.Failure)
 
     @E.gen
@@ -103,4 +103,4 @@ def test_looks_good():
     # needs providing.
     program = E.provide_implicit(do_log(), E.MinimumLogLevel(E.LogLevel.ALL))
 
-    E.run_sync(program)
+    E.run_sync_exit(program)

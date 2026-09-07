@@ -22,7 +22,9 @@ class Db:
 # --- require_implicit: R stays Never, so the effect is runnable bare ---
 
 assert_type(E.require_implicit(Greeting), E.Effect[Greeting])
-assert_type(E.run_sync(E.require_implicit(Greeting)), E.Succeeded[Greeting] | E.Failure)
+assert_type(
+    E.run_sync_exit(E.require_implicit(Greeting)), E.Succeeded[Greeting] | E.Failure
+)
 
 # Mixing with a plain requirement: only the plain one enters R.
 _mixed = E.require_implicit(Greeting).flat_map(
@@ -58,7 +60,7 @@ _MissingDefault()
 # default fallback is opt-in through require_implicit.
 # Type-checked only; never called.
 def _plain_require_is_not_runnable() -> None:
-    E.run_sync(E.require(Greeting))  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(E.require(Greeting))  # ty: ignore[invalid-argument-type]
 
 
 # --- provide_implicit: preserves all three channels ---

@@ -61,10 +61,17 @@ def partial_handler(e: ParseError | NegativeError) -> E.Effect[int, ParseError]:
 
 assert_type(chain.catch_all(partial_handler), E.Effect[int, ParseError])
 
-# --- run_sync produces an Exit matching the effect's channels ---
+# --- run_sync_exit produces an Exit matching the effect's channels ---
 
-assert_type(E.run_sync(chain), E.Succeeded[int] | E.Failure[ParseError | NegativeError])
-assert_type(E.run_sync(E.success(1)), E.Succeeded[int] | E.Failure)
+assert_type(
+    E.run_sync_exit(chain), E.Succeeded[int] | E.Failure[ParseError | NegativeError]
+)
+assert_type(E.run_sync_exit(E.success(1)), E.Succeeded[int] | E.Failure)
+
+# --- run_sync produces the value; failures raise instead ---
+
+assert_type(E.run_sync(chain), int)
+assert_type(E.run_sync(E.success(1)), Literal[1])
 
 # --- Cause has three states; only Fail carries the typed error ---
 
@@ -80,7 +87,7 @@ wrong_error: E.Cause[ParseError] = E.Fail(NegativeError(1))  # ty: ignore[invali
 
 assert_type(E.sync(lambda: 1), E.Effect[Literal[1]])
 assert_type(E.sync(lambda: "1").flat_map(parse), E.Effect[int, ParseError])
-assert_type(E.run_sync(E.sync(lambda: 1)), E.Succeeded[int] | E.Failure)
+assert_type(E.run_sync_exit(E.sync(lambda: 1)), E.Succeeded[int] | E.Failure)
 
 # --- sync: negative tests ---
 
@@ -181,4 +188,5 @@ E.success(1).on_exit(E.fail(ParseError("x")))  # ty: ignore[invalid-argument-typ
 # A finalizer requirement makes the effect unrunnable until provided.
 # Type-checked only; never called.
 def _finalizer_requirement_is_not_runnable() -> None:
+    E.run_sync_exit(E.success(1).on_exit(E.require(Db)))  # ty: ignore[invalid-argument-type]
     E.run_sync(E.success(1).on_exit(E.require(Db)))  # ty: ignore[invalid-argument-type]

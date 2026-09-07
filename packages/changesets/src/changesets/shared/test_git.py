@@ -35,7 +35,7 @@ def test_added_in_returns_the_subject_of_the_adding_commit(tmp_path):
     commit(tmp_path, "one.md", "Add thing (#7)")
     commit(tmp_path, "two.md", "Add another (#8)")
 
-    result = E.run_sync(Git.Live(cwd=tmp_path).added_in(tmp_path / "one.md"))
+    result = E.run_sync_exit(Git.Live(cwd=tmp_path).added_in(tmp_path / "one.md"))
 
     assert result == E.Succeeded(value="Add thing (#7)")
 
@@ -45,7 +45,7 @@ def test_added_in_is_none_for_an_untracked_path(tmp_path):
     commit(tmp_path, "one.md", "Add thing (#7)")
     (tmp_path / "pending.md").write_text("x")
 
-    result = E.run_sync(Git.Live(cwd=tmp_path).added_in(tmp_path / "pending.md"))
+    result = E.run_sync_exit(Git.Live(cwd=tmp_path).added_in(tmp_path / "pending.md"))
 
     assert result == E.Succeeded(value=None)
 
@@ -57,7 +57,7 @@ def test_remote_url_returns_the_configured_remote(tmp_path):
         ["git", "-C", str(tmp_path), "remote", "add", "origin", url], check=True
     )
 
-    result = E.run_sync(Git.Live(cwd=tmp_path).remote_url("origin"))
+    result = E.run_sync_exit(Git.Live(cwd=tmp_path).remote_url("origin"))
 
     assert result == E.Succeeded(value=url)
 
@@ -65,7 +65,7 @@ def test_remote_url_returns_the_configured_remote(tmp_path):
 def test_a_missing_remote_fails(tmp_path):
     init_repo(tmp_path)
 
-    result = E.run_sync(Git.Live(cwd=tmp_path).remote_url("origin"))
+    result = E.run_sync_exit(Git.Live(cwd=tmp_path).remote_url("origin"))
 
     assert isinstance(result, E.Failure)
     assert isinstance(result.cause, E.Fail)

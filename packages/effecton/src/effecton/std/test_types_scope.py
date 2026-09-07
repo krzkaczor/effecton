@@ -45,7 +45,7 @@ _needs_scope = E.add_finalizer(E.success(None)).flat_map(lambda _: parse("1"))
 assert_type(_needs_scope, E.Effect[int, ParseError, E.Scope])
 assert_type(E.scoped(_needs_scope), E.Effect[int, ParseError])
 assert_type(
-    E.run_sync(E.scoped(_needs_scope)), E.Succeeded[int] | E.Failure[ParseError]
+    E.run_sync_exit(E.scoped(_needs_scope)), E.Succeeded[int] | E.Failure[ParseError]
 )
 
 _needs_scope_and_db = _needs_scope.flat_map(lambda n: E.require(Db).map(lambda _: n))
@@ -78,7 +78,7 @@ _runnable_scoped_three = (
 )
 assert_type(_runnable_scoped_three, E.Effect[tuple[Db, Logger, Cache]])
 assert_type(
-    E.run_sync(_runnable_scoped_three),
+    E.run_sync_exit(_runnable_scoped_three),
     E.Succeeded[tuple[Db, Logger, Cache]] | E.Failure,
 )
 
@@ -106,7 +106,7 @@ assert_type(parse("1").scoped(), E.Effect[int, ParseError])
 # .scoped() leaves non-Scope requirements in place: still unrunnable.
 # Type-checked only; never called.
 def _method_scoped_leftover_is_not_runnable() -> None:
-    E.run_sync(_needs_scope_and_three.provide(Db)(Db("pg")).scoped())  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(_needs_scope_and_three.provide(Db)(Db("pg")).scoped())  # ty: ignore[invalid-argument-type]
 
 
 # --- scoped: negative tests ---
@@ -115,7 +115,7 @@ def _method_scoped_leftover_is_not_runnable() -> None:
 # A leftover non-Scope requirement keeps the effect unrunnable.
 # Type-checked only; never called.
 def _scoped_leftover_requirement_is_not_runnable() -> None:
-    E.run_sync(E.scoped(_needs_scope_and_db))  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(E.scoped(_needs_scope_and_db))  # ty: ignore[invalid-argument-type]
 
 
 # --- acquire_and_release: the resource's lifetime lives in the Scope channel ---
@@ -145,7 +145,7 @@ assert_type(
 # Unrunnable until a scope discharges the Scope requirement.
 # Type-checked only; never called.
 def _unscoped_resource_is_not_runnable() -> None:
-    E.run_sync(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # ty: ignore[invalid-argument-type]
+    E.run_sync_exit(E.acquire_and_release(E.success(1), lambda _: E.success(None)))  # ty: ignore[invalid-argument-type]
 
 
 # release cannot have a typed error channel.

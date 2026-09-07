@@ -19,7 +19,7 @@ def main(skill_url: str) -> None:
         .provide(Terminal.Protocol)(Terminal.Live())
     )
 
-    match E.run_sync(runnable):
+    match E.run_sync_exit(runnable):
         case E.Succeeded(value=skill_name):
             typer.echo(f"Skill {skill_name} installed.")
         case E.Failure(cause=E.Fail(error=error)):

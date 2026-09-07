@@ -70,7 +70,7 @@ handled = chain.catch(NegativeError)(lambda _: E.success(0)).catch(ParseError)(
     lambda _: E.success(1)
 )
 assert_type(handled, E.Effect[int])
-assert_type(E.run_sync(handled), E.Succeeded[int] | E.Failure)
+assert_type(E.run_sync_exit(handled), E.Succeeded[int] | E.Failure)
 
 # The handler's requirements union into R; the source's ride through.
 assert_type(
@@ -122,5 +122,7 @@ must_be_handled: E.Effect[int] = partially_handled  # ty: ignore[invalid-assignm
 
 # An effect with an uncaught error still runs, but its Exit carries it.
 def _remainder_is_in_the_exit() -> None:
-    assert_type(E.run_sync(partially_handled), E.Succeeded[int] | E.Failure[ParseError])
-    assert_type(E.run_sync(chain), E.Succeeded[int] | E.Failure[Never])  # ty: ignore[type-assertion-failure]
+    assert_type(
+        E.run_sync_exit(partially_handled), E.Succeeded[int] | E.Failure[ParseError]
+    )
+    assert_type(E.run_sync_exit(chain), E.Succeeded[int] | E.Failure[Never])  # ty: ignore[type-assertion-failure]

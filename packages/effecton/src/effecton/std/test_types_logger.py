@@ -19,7 +19,7 @@ class Db:
 
 assert_type(E.log_info("x"), E.Effect[None])
 assert_type(E.log("x", 1, True), E.Effect[None])
-assert_type(E.run_sync(E.log("x")), E.Succeeded[None] | E.Failure)
+assert_type(E.run_sync_exit(E.log("x")), E.Succeeded[None] | E.Failure)
 
 # Mixing a log with a plain requirement leaves only the plain one in R.
 _mixed = E.log_info("hi").flat_map(lambda _: E.require(Db))

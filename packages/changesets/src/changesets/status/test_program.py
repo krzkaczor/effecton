@@ -21,7 +21,7 @@ def make_fs(extra_files=None):
 def test_reports_no_pending_changesets():
     program = status(ROOT).provide(FileSystem.Protocol)(make_fs())
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="No unreleased changesets found.")
 
@@ -35,7 +35,7 @@ def test_reports_planned_releases_and_changesets():
     )
     program = status(ROOT).provide(FileSystem.Protocol)(fs)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(
         value=(
@@ -55,7 +55,7 @@ def test_fails_outside_a_changeset_repo():
     fs = FileSystem.Test()
     program = status(ROOT).provide(FileSystem.Protocol)(fs)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Failure(cause=E.Fail(NotAChangesetRepo(start=ROOT)))
 
@@ -64,6 +64,6 @@ def test_finds_the_root_from_a_subdirectory():
     fs = make_fs()
     program = status(ROOT / "packages/effecton").provide(FileSystem.Protocol)(fs)
 
-    result = E.run_sync(program)
+    result = E.run_sync_exit(program)
 
     assert result == E.Succeeded(value="No unreleased changesets found.")
