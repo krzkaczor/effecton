@@ -44,7 +44,7 @@ class MissingRequirement(Exception):
 class AsyncEffectInSyncRun(Exception):
     """Defect for a coroutine effect reached by a synchronous runner.
 
-    Only the run_async family can await. run_sync_exit settles as
+    run_main and the run_async family can await. run_sync_exit settles as
     Failure(Die(AsyncEffectInSyncRun())); run_sync raises it.
     """
 

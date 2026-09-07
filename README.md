@@ -113,7 +113,7 @@ More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/m
 
 ### Running effects
 
-Effects are inert values; a runner interprets one. Each runner comes in a throwing form that returns the value and an `_exit` form that returns an `Exit`:
+Effects are inert values; a runner interprets one. The sync and async runners come in a throwing form that returns the value and an `_exit` form that returns an `Exit`. Use `run_main` at a process entry point to report failures and choose exit codes:
 
 | Runner | Runs | Returns |
 |---|---|---|
@@ -121,9 +121,10 @@ Effects are inert values; a runner interprets one. Each runner comes in a throwi
 | `run_sync_exit(effect)` | synchronously | `Exit[A, E]` |
 | `run_async(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | the value, raising on failure |
 | `run_async_exit(effect)` | on a fresh asyncio loop (`asyncio.run` inside) | `Exit[A, E]` |
+| `run_main(effect)` | on a fresh asyncio loop | the value, logging and exiting on failure |
 | `await run_async_coroutine(effect)` | inside a loop you already own | `Exit[A, E]` |
 
-The throwing forms raise a typed failure as the error itself (every `EffectonError` is an `Exception`), re-raise an exception defect as it is, wrap any other defect in `UnhandledDefect`, and re-raise the exception carried by an interruption:
+`run_sync` and `run_async` raise a typed failure as the error itself (every `EffectonError` is an `Exception`), re-raise an exception defect as it is, wrap any other defect in `UnhandledDefect`, and re-raise the exception carried by an interruption:
 
 ```python
 try:
@@ -153,6 +154,43 @@ exit = await E.run_async_coroutine(
 Running an effect that contains a `coroutine` effect synchronously doesn't await it: `run_sync_exit` settles as `Failure(Die(AsyncEffectInSyncRun()))`, `run_sync` raises `AsyncEffectInSyncRun`, and finalizers still run in both cases.
 
 More examples: [`test_run_sync.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_sync.py), [`test_run_async.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_run_async.py).
+
+### Main programs
+
+`E.run_main(effect)` runs sync and async effects, returning the successful value so a CLI can print its result:
+
+```python
+from dataclasses import dataclass
+from typing import ClassVar, final
+
+import effecton as E
+
+
+@final
+@dataclass(frozen=True)
+class InvalidName(E.EffectonError):
+    name: str
+    exit_code: ClassVar[int] = 2
+
+    def __str__(self) -> str:
+        return f"Invalid name: {self.name!r}"
+
+
+def greet(name: str) -> E.Effect[str, InvalidName]:
+    if not name.strip():
+        return E.fail(InvalidName(name))
+    return E.success(f"Hello, {name}!")
+
+
+if __name__ == "__main__":
+    print(E.run_main(greet("world")))
+```
+
+Typed failures log their message at ERROR; exception defects start with `Defect occurred: <type>: <message>`, followed by their traceback and exception chain, and other defects render as `Unhandled defect: ...`. The report uses the default effecton logger and pretty formatting, independently of logging requirements provided inside the program. It then raises `SystemExit(1)`, or uses an integer `exit_code` attribute on the error or defect. Missing and non-integer attributes (including booleans) fall back to `1`. A successful integer is returned as a value, never treated as an exit code.
+
+Ctrl+C and cancellation exit quietly with `130`; SIGTERM exits with `143`. The first signal determines the code. Finalizers finish and the event loop closes before control returns or `SystemExit` is raised, and previous signal handlers are restored. Repeated signals continue cancellation without bypassing finalizers; there is no cleanup timeout. Cancellation is cooperative, so blocking synchronous work can delay shutdown. An explicit `SystemExit` inside the effect retains its code after finalization.
+
+Call `run_main` from the main thread, outside a running event loop. Both examples use it: [`skills-cli`](packages/examples/skills-cli/src/skills_cli/cli.py) and [`changesets`](packages/changesets/src/changesets/status/cli.py).
 
 ### Error handling
 
@@ -298,7 +336,7 @@ More examples: [`test_attempt.py`](https://github.com/krzkaczor/effecton/blob/ma
 
 ### Wrapping async code
 
-`coroutine` defers an awaitable the way `sync` defers a thunk: the thunk builds a fresh awaitable on every run, because a coroutine object can be awaited only once. Exceptions become defects. `attempt_async` is the `attempt` counterpart that maps expected exceptions into the error channel. Only the `run_async` family can interpret either:
+`coroutine` defers an awaitable the way `sync` defers a thunk: the thunk builds a fresh awaitable on every run, because a coroutine object can be awaited only once. Exceptions become defects. `attempt_async` is the `attempt` counterpart that maps expected exceptions into the error channel. `run_main` and the `run_async` family can interpret either:
 
 ```python
 client = httpx.AsyncClient()
