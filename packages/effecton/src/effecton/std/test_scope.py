@@ -26,7 +26,7 @@ def test_scoped_happy_path():
         lambda _: E.add_finalizer(E.sync(lambda: actions.append("f2")))
     )
 
-    r = E.run_sync(E.scoped(program))
+    r = E.run_sync_exit(E.scoped(program))
 
     assert r == E.Succeeded(None)
     assert actions == ["f2", "f1"]
@@ -45,7 +45,7 @@ def test_finalizer_defect_does_not_skip_other_finalizers():
         .flat_map(lambda _: E.add_finalizer(E.sync(lambda: actions.append("f3"))))
     )
 
-    assert E.run_sync(E.scoped(program)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(E.scoped(program)) == E.Failure(cause=E.Die(defect=err))
     assert actions == ["f3", "f1"]
 
 
@@ -54,8 +54,8 @@ def test_scoped_programs_are_reusable_values():
     program = E.add_finalizer(E.sync(lambda: actions.append("f")))
     p: E.Effect[None] = E.scoped(program)
 
-    assert E.run_sync(p) == E.Succeeded(None)
-    assert E.run_sync(p) == E.Succeeded(None)
+    assert E.run_sync_exit(p) == E.Succeeded(None)
+    assert E.run_sync_exit(p) == E.Succeeded(None)
     assert actions == ["f", "f"]
 
 
@@ -66,8 +66,8 @@ def test_close_is_idempotent():
 
     close = scope.close()
 
-    assert E.run_sync(close) == E.Succeeded(None)
-    assert E.run_sync(close) == E.Succeeded(None)
+    assert E.run_sync_exit(close) == E.Succeeded(None)
+    assert E.run_sync_exit(close) == E.Succeeded(None)
     assert actions == ["f"]
 
 
@@ -77,7 +77,7 @@ def test_close_sees_finalizers_added_after_close_was_called():
     close = scope.close()
     scope.add_finalizer(E.sync(lambda: actions.append("late")))
 
-    assert E.run_sync(close) == E.Succeeded(None)
+    assert E.run_sync_exit(close) == E.Succeeded(None)
     assert actions == ["late"]
 
 
@@ -88,7 +88,7 @@ def test_scoped_passes_other_requirements_through():
     )
     runnable = E.scoped(program).provide(Db)(Db("pg"))
 
-    assert E.run_sync(runnable) == E.Succeeded(None)
+    assert E.run_sync_exit(runnable) == E.Succeeded(None)
     assert actions == ["close pg"]
 
 
@@ -99,7 +99,7 @@ def test_provide_chain_terminated_by_scoped_method():
     )
     p: E.Effect[None] = program.provide(Db)(Db("pg")).scoped()
 
-    assert E.run_sync(p) == E.Succeeded(None)
+    assert E.run_sync_exit(p) == E.Succeeded(None)
     assert actions == ["close pg"]
 
 
@@ -108,8 +108,8 @@ def test_scoped_method_programs_are_reusable_values():
     program = E.add_finalizer(E.sync(lambda: actions.append("f")))
     p: E.Effect[None] = program.scoped()
 
-    assert E.run_sync(p) == E.Succeeded(None)
-    assert E.run_sync(p) == E.Succeeded(None)
+    assert E.run_sync_exit(p) == E.Succeeded(None)
+    assert E.run_sync_exit(p) == E.Succeeded(None)
     assert actions == ["f", "f"]
 
 
@@ -121,7 +121,7 @@ def test_acquire_and_release_success():
     )
     program = resource.flat_map(lambda h: E.sync(lambda: actions.append(f"use {h}")))
 
-    assert E.run_sync(E.scoped(program)) == E.Succeeded(None)
+    assert E.run_sync_exit(E.scoped(program)) == E.Succeeded(None)
     assert actions == ["open", "use handle", "close handle"]
 
 
@@ -136,7 +136,7 @@ def test_acquire_and_release_releases_in_lifo_order():
 
     program = resource("a").flat_map(lambda _: resource("b"))
 
-    assert E.run_sync(E.scoped(program)) == E.Succeeded("b")
+    assert E.run_sync_exit(E.scoped(program)) == E.Succeeded("b")
     assert actions == ["open a", "open b", "close b", "close a"]
 
 
@@ -148,7 +148,9 @@ def test_release_runs_on_typed_failure():
     )
     program = resource.flat_map(lambda _: E.fail(BrokenError("boom")))
 
-    assert E.run_sync(E.scoped(program)) == E.Failure(cause=E.Fail(BrokenError("boom")))
+    assert E.run_sync_exit(E.scoped(program)) == E.Failure(
+        cause=E.Fail(BrokenError("boom"))
+    )
     assert actions == ["open", "close"]
 
 
@@ -160,7 +162,7 @@ def test_release_runs_on_defect():
     )
     program = resource.flat_map(lambda _: E.die("boom"))
 
-    assert E.run_sync(E.scoped(program)) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(E.scoped(program)) == E.Failure(cause=E.Die(defect="boom"))
     assert actions == ["open", "close"]
 
 
@@ -171,7 +173,7 @@ def test_failed_acquire_registers_no_release():
         lambda _: E.sync(lambda: actions.append("close")),
     )
 
-    assert E.run_sync(E.scoped(resource)) == E.Failure(
+    assert E.run_sync_exit(E.scoped(resource)) == E.Failure(
         cause=E.Fail(BrokenError("no resource"))
     )
     assert actions == []
@@ -185,8 +187,8 @@ def test_acquired_programs_are_reusable_values():
     )
     p: E.Effect[str] = E.scoped(resource)
 
-    assert E.run_sync(p) == E.Succeeded("h")
-    assert E.run_sync(p) == E.Succeeded("h")
+    assert E.run_sync_exit(p) == E.Succeeded("h")
+    assert E.run_sync_exit(p) == E.Succeeded("h")
     assert actions == ["open", "close", "open", "close"]
 
 
@@ -204,7 +206,7 @@ def test_raising_release_function_is_a_close_time_defect():
         lambda _: E.sync(lambda: actions.append("close a")),
     ).flat_map(lambda _: E.acquire_and_release(E.sync(lambda: "b"), bad_release))
 
-    assert E.run_sync(E.scoped(program)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(E.scoped(program)) == E.Failure(cause=E.Die(defect=err))
     assert actions == ["open a", "close a"]
 
 
@@ -216,5 +218,5 @@ def test_acquire_with_requirements():
     )
     p: E.Effect[str] = resource.provide(Db)(Db("pg")).scoped()
 
-    assert E.run_sync(p) == E.Succeeded("pg")
+    assert E.run_sync_exit(p) == E.Succeeded("pg")
     assert actions == ["open pg", "close pg"]

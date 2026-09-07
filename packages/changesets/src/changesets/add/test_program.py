@@ -39,7 +39,7 @@ def test_creates_a_changeset():
     fs = make_fs()
     name_generator = NameGenerator.Test(names=["happy-pandas-dance"])
 
-    result = E.run_sync(
+    result = E.run_sync_exit(
         wire_add(fs, name_generator, bump="minor", summary="Add retry.")
     )
 
@@ -52,7 +52,7 @@ def test_strips_the_summary():
     fs = make_fs()
     name_generator = NameGenerator.Test()
 
-    result = E.run_sync(wire_add(fs, name_generator, summary="  Fix a bug.\n"))
+    result = E.run_sync_exit(wire_add(fs, name_generator, summary="  Fix a bug.\n"))
 
     path = CS_DIR / "happy-pandas-dance.md"
     assert result == E.Succeeded(value=path)
@@ -62,7 +62,7 @@ def test_strips_the_summary():
 def test_an_unknown_package_fails():
     fs = make_fs()
 
-    result = E.run_sync(wire_add(fs, NameGenerator.Test(), package="nope"))
+    result = E.run_sync_exit(wire_add(fs, NameGenerator.Test(), package="nope"))
 
     assert result == E.Failure(
         cause=E.Fail(UnknownPackage(path=CONFIG, package="nope"))
@@ -74,7 +74,7 @@ def test_pick_name_returns_the_first_free_name():
     fs = make_fs()
     name_generator = NameGenerator.Test(names=["happy-pandas-dance"])
 
-    result = E.run_sync(wire_pick_name(fs, name_generator))
+    result = E.run_sync_exit(wire_pick_name(fs, name_generator))
 
     assert result == E.Succeeded(value="happy-pandas-dance")
 
@@ -85,7 +85,7 @@ def test_pick_name_skips_taken_names():
         names=["happy-pandas-dance", "quiet-otters-swim"]
     )
 
-    result = E.run_sync(wire_pick_name(fs, name_generator))
+    result = E.run_sync_exit(wire_pick_name(fs, name_generator))
 
     assert result == E.Succeeded(value="quiet-otters-swim")
 
@@ -94,7 +94,7 @@ def test_pick_name_falls_back_to_a_numeric_suffix_after_five_collisions():
     fs = make_fs(extra_files={CS_DIR / "dup.md": "existing"})
     name_generator = NameGenerator.Test(names=["dup"] * 6)
 
-    result = E.run_sync(wire_pick_name(fs, name_generator))
+    result = E.run_sync_exit(wire_pick_name(fs, name_generator))
 
     assert result == E.Succeeded(value="dup-2")
 
@@ -109,6 +109,6 @@ def test_pick_name_increments_the_suffix_past_taken_names():
     )
     name_generator = NameGenerator.Test(names=["dup"] * 6)
 
-    result = E.run_sync(wire_pick_name(fs, name_generator))
+    result = E.run_sync_exit(wire_pick_name(fs, name_generator))
 
     assert result == E.Succeeded(value="dup-4")

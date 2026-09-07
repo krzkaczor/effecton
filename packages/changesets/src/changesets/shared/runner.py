@@ -8,7 +8,7 @@ import effecton as E
 
 
 def execute[A](runnable: E.Effect[A, E.EffectonError]) -> A:
-    match E.run_sync(runnable):
+    match E.run_sync_exit(runnable):
         case E.Succeeded(value=value):
             return value
         case E.Failure(cause=cause):

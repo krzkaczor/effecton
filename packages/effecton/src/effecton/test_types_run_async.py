@@ -35,17 +35,36 @@ failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
 assert_type(failing, E.Effect[Never, ParseError])
 
 
-# --- run_async produces an Exit matching the effect's channels ---
+# --- run_async_coroutine produces an Exit matching the effect's channels ---
 # Type-checked only; never called.
-async def _run_async_pins() -> None:
-    assert_type(await E.run_async(E.coroutine(fetch)), E.Succeeded[int] | E.Failure)
-    assert_type(await E.run_async(failing), E.Succeeded[Never] | E.Failure[ParseError])
+async def _run_async_coroutine_pins() -> None:
+    assert_type(
+        await E.run_async_coroutine(E.coroutine(fetch)), E.Succeeded[int] | E.Failure
+    )
+    assert_type(
+        await E.run_async_coroutine(failing), E.Succeeded[Never] | E.Failure[ParseError]
+    )
 
-    # A pure-sync effect runs under run_async too.
-    assert_type(await E.run_async(E.success(1)), E.Succeeded[Literal[1]] | E.Failure)
+    # A pure-sync effect runs under run_async_coroutine too.
+    assert_type(
+        await E.run_async_coroutine(E.success(1)), E.Succeeded[Literal[1]] | E.Failure
+    )
 
-    # An unmet requirement makes the effect unrunnable under run_async as well.
-    await E.run_async(E.require(Db))  # ty: ignore[invalid-argument-type]
+    # An unmet requirement makes the effect unrunnable here as well.
+    await E.run_async_coroutine(E.require(Db))  # ty: ignore[invalid-argument-type]
+
+
+# --- run_async_exit returns the same Exit; run_async returns the value ---
+# Type-checked only; never called.
+def _run_async_pins() -> None:
+    assert_type(E.run_async_exit(E.coroutine(fetch)), E.Succeeded[int] | E.Failure)
+    assert_type(E.run_async_exit(failing), E.Succeeded[Never] | E.Failure[ParseError])
+    assert_type(E.run_async(E.coroutine(fetch)), int)
+    assert_type(E.run_async(E.success(1)), Literal[1])
+
+    # An unmet requirement is a type error for every runner.
+    E.run_async_exit(E.require(Db))  # ty: ignore[invalid-argument-type]
+    E.run_async(E.require(Db))  # ty: ignore[invalid-argument-type]
 
 
 # --- negative tests ---

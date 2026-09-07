@@ -182,13 +182,14 @@ def sync[A](fn: Callable[[], A]) -> Effect[A]:
 
 
 def coroutine[A](fn: Callable[[], Awaitable[A]]) -> Effect[A]:
-    """Defer an awaitable; only run_async can interpret the result.
+    """Defer an awaitable; only the run_async family can interpret it.
 
     The thunk runs once per run of the effect and must build a fresh
     awaitable each time, because a coroutine object can be awaited only
     once. Every exception, whether raised by the thunk or by the await,
     becomes a defect; use attempt_async for typed failures. Interpreting
-    the effect with run_sync dies with AsyncEffectInSyncRun.
+    the effect with run_sync_exit settles as Die(AsyncEffectInSyncRun());
+    run_sync raises it.
     """
     return Coroutine(fn)
 

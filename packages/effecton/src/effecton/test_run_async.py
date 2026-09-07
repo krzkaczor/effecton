@@ -5,7 +5,12 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, final
 
+import pytest
+
 import effecton as E
+
+# Interrupt has no public constructor; the runner tests build the node directly.
+from effecton.effect import FailCause
 
 
 @final
@@ -22,19 +27,76 @@ async def double(x: int) -> int:
 def test_coroutine_success():
     p = E.coroutine(lambda: double(21))
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
+
+
+def test_run_async_returns_the_value():
+    assert E.run_async(E.coroutine(lambda: double(21))) == 42
+
+
+def test_run_async_raises_the_error():
+    error = OopsError("boom")
+    p = E.coroutine(lambda: double(1)).flat_map(lambda _: E.fail(error))
+
+    with pytest.raises(OopsError) as info:
+        E.run_async(p)
+
+    assert info.value is error
+
+
+def test_run_async_reraises_an_exception_defect():
+    err = ValueError("boom")
+
+    async def bad() -> int:
+        raise err
+
+    with pytest.raises(ValueError) as info:
+        E.run_async(E.coroutine(bad))
+
+    assert info.value is err
+
+
+def test_run_async_wraps_a_non_exception_defect():
+    with pytest.raises(E.UnhandledDefect) as info:
+        E.run_async(E.die("boom"))
+
+    assert info.value.defect == "boom"
+
+
+def test_run_async_reraises_the_interrupt_exception():
+    interrupt = KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt) as info:
+        E.run_async(FailCause(cause=E.Interrupt(interrupt)))
+
+    assert info.value is interrupt
+
+
+def test_run_async_runs_finalizers_before_raising():
+    actions: list[str] = []
+
+    async def cleanup() -> None:
+        await asyncio.sleep(0)
+        actions.append("finalized")
+
+    p = E.fail(OopsError("boom")).on_exit(E.coroutine(cleanup))
+
+    with pytest.raises(OopsError):
+        E.run_async(p)
+
+    assert actions == ["finalized"]
 
 
 def test_pure_sync_program_runs_under_run_async():
     p = E.success(21).map(lambda x: x * 2).on_exit(E.sync(lambda: None))
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
 
 
 def test_typed_failure_passes_through():
     p = E.coroutine(lambda: double(1)).flat_map(lambda _: E.fail(OopsError("boom")))
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_async_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_thunk_that_raises_dies():
@@ -45,7 +107,7 @@ def test_thunk_that_raises_dies():
 
     p = E.coroutine(bad_thunk)
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_async_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_await_that_raises_dies():
@@ -57,7 +119,7 @@ def test_await_that_raises_dies():
 
     p = E.coroutine(bad)
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_async_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_coroutine_is_lazy():
@@ -70,7 +132,7 @@ def test_coroutine_is_lazy():
     p = E.coroutine(track)
 
     assert calls == []
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
     assert calls == [1]
 
 
@@ -83,8 +145,8 @@ def test_coroutine_effects_are_reusable_values():
 
     p = E.coroutine(track)
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
     assert calls == [1, 1]
 
 
@@ -92,8 +154,8 @@ def test_captured_coroutine_object_dies_on_second_run():
     coro = double(1)
     p = E.coroutine(lambda: coro)
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(2)
-    match asyncio.run(E.run_async(p)):
+    assert E.run_async_exit(p) == E.Succeeded(2)
+    match E.run_async_exit(p):
         case E.Failure(E.Die(defect)):
             assert isinstance(defect, RuntimeError)
         case other:
@@ -113,7 +175,7 @@ def test_finalizers_run_across_await_points():
         .on_exit(E.coroutine(lambda: step("finalized")))
     )
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(None)
+    assert E.run_async_exit(p) == E.Succeeded(None)
     assert actions == ["first", "second", "finalized"]
 
 
@@ -134,7 +196,7 @@ def test_scope_releases_across_await_points():
     )
     p = conn.flat_map(lambda c: E.coroutine(lambda: double(len(c)))).scoped()
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(8)
+    assert E.run_async_exit(p) == E.Succeeded(8)
     assert actions == ["acquired", "released:conn"]
 
 
@@ -157,7 +219,7 @@ def test_scoped_async_context_manager_restores_context():
             E.coroutine(manager.__aenter__),
             lambda _: E.coroutine(lambda: manager.__aexit__(None, None, None)),
         ).scoped()
-        result = await E.run_async(p)
+        result = await E.run_async_coroutine(p)
         return result, value.get()
 
     result, restored_value = asyncio.run(main())
@@ -175,7 +237,7 @@ def test_provide_scope_is_restored_across_await():
 
     provided = p.provide(str)("outer")
 
-    assert asyncio.run(E.run_async(provided)) == E.Succeeded(("inner", "outer"))
+    assert E.run_async_exit(provided) == E.Succeeded(("inner", "outer"))
 
 
 def test_gen_body_yields_coroutine():
@@ -187,8 +249,8 @@ def test_gen_body_yields_coroutine():
             yield from E.fail(OopsError("too big"))
         return doubled + 1
 
-    assert asyncio.run(E.run_async(program(21))) == E.Succeeded(43)
-    assert asyncio.run(E.run_async(program(51))) == E.Failure(
+    assert E.run_async_exit(program(21)) == E.Succeeded(43)
+    assert E.run_async_exit(program(51)) == E.Failure(
         cause=E.Fail(OopsError("too big"))
     )
 
@@ -196,7 +258,7 @@ def test_gen_body_yields_coroutine():
 def test_attempt_async_success():
     p = E.attempt_async(lambda: double(21), lambda e: OopsError(str(e)))
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
 
 
 def test_attempt_async_maps_expected_exception():
@@ -211,9 +273,7 @@ def test_attempt_async_maps_expected_exception():
 
     p = E.attempt_async(bad, to_error)
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(
-        cause=E.Fail(OopsError("bad value"))
-    )
+    assert E.run_async_exit(p) == E.Failure(cause=E.Fail(OopsError("bad value")))
 
 
 def test_attempt_async_reraised_exception_stays_a_defect():
@@ -229,7 +289,7 @@ def test_attempt_async_reraised_exception_stays_a_defect():
 
     p = E.attempt_async(bad, to_error)
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_async_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_attempt_async_is_lazy_and_reusable():
@@ -242,8 +302,8 @@ def test_attempt_async_is_lazy_and_reusable():
     p = E.attempt_async(track, lambda e: OopsError(str(e)))
 
     assert calls == []
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
+    assert E.run_async_exit(p) == E.Succeeded(42)
     assert calls == [1, 1]
 
 
@@ -268,7 +328,7 @@ def test_cancellation_runs_finalizers_then_returns_interrupt():
     p = E.coroutine(forever).on_exit(E.coroutine(cleanup))
 
     async def main():
-        task = asyncio.create_task(E.run_async(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -293,7 +353,7 @@ def test_cancellation_preserves_nested_finalizer_continuation():
             .flat_map(lambda _: E.sync(lambda: actions.append("remaining")))
         )
         p = E.coroutine(forever).on_exit(cleanup)
-        task = asyncio.create_task(E.run_async(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await started.wait()
         task.cancel()
         return await task
@@ -317,7 +377,7 @@ def test_cancellation_skips_catch_all():
     p = E.coroutine(forever).catch_all(handler)
 
     async def main():
-        task = asyncio.create_task(E.run_async(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -340,7 +400,7 @@ def test_timeout_around_run_async_releases_scope_and_returns_interrupt():
 
     async def main():
         async with asyncio.timeout(0.01):
-            return await E.run_async(p)
+            return await E.run_async_coroutine(p)
 
     assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]
@@ -361,7 +421,7 @@ def test_cancellation_during_release_lets_the_release_finish():
     p = conn.scoped()
 
     async def main():
-        task = asyncio.create_task(E.run_async(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         while not actions:
             await asyncio.sleep(0)
         task.cancel()
@@ -386,7 +446,7 @@ def test_interrupt_wins_over_a_finalizer_defect():
     p = E.coroutine(forever).on_exit(E.coroutine(bad_cleanup))
 
     async def main():
-        task = asyncio.create_task(E.run_async(p))
+        task = asyncio.create_task(E.run_async_coroutine(p))
         await asyncio.sleep(0)
         task.cancel()
         return await task
@@ -407,7 +467,7 @@ def test_cancellation_raised_by_sync_thunk_runs_finalizers_then_returns_interrup
         cancelled_future.cancel()
         p = conn.flat_map(lambda _: E.sync(cancelled_future.result)).scoped()
 
-        return await E.run_async(p)
+        return await E.run_async_coroutine(p)
 
     assert_interrupted(asyncio.run(main()))
     assert actions == ["acquired", "released"]
@@ -421,7 +481,7 @@ def test_cancellation_raised_by_callback_runs_finalizers_then_returns_interrupt(
 
     p = E.success(1).flat_map(boom).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert_interrupted(asyncio.run(E.run_async(p)))
+    assert_interrupted(E.run_async_exit(p))
     assert actions == ["finalized"]
 
 
@@ -433,7 +493,7 @@ def test_finalizer_defect_still_replaces_the_exit():
 
     p = E.success(1).on_exit(E.coroutine(bad_cleanup))
 
-    assert asyncio.run(E.run_async(p)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_async_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_nested_finalizers_run_inner_to_outer_across_awaits():
@@ -449,5 +509,5 @@ def test_nested_finalizers_run_inner_to_outer_across_awaits():
         .on_exit(E.coroutine(lambda: step("outer")))
     )
 
-    assert asyncio.run(E.run_async(p)) == E.Succeeded(1)
+    assert E.run_async_exit(p) == E.Succeeded(1)
     assert actions == ["inner", "outer"]

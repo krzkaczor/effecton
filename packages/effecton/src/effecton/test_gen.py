@@ -26,7 +26,7 @@ def test_basic_sequence():
         y = yield from E.success(22)
         return x + y
 
-    assert E.run_sync(program()) == E.Succeeded(value=42)
+    assert E.run_sync_exit(program()) == E.Succeeded(value=42)
 
 
 def test_parameterized_program():
@@ -35,7 +35,7 @@ def test_parameterized_program():
         x = yield from E.success(base)
         return x * 2
 
-    assert E.run_sync(program(21)) == E.Succeeded(value=42)
+    assert E.run_sync_exit(program(21)) == E.Succeeded(value=42)
 
 
 def test_failure_short_circuits():
@@ -48,7 +48,7 @@ def test_failure_short_circuits():
         reached.append("after failing yield")
         return 0
 
-    assert E.run_sync(program()) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(program()) == E.Failure(cause=E.Fail(OopsError("boom")))
     assert reached == []
 
 
@@ -65,7 +65,7 @@ def test_try_except_does_not_catch_effect_failure():
             caught.append("caught")
         return 0
 
-    assert E.run_sync(program()) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(program()) == E.Failure(cause=E.Fail(OopsError("boom")))
     assert caught == []
 
 
@@ -77,7 +77,7 @@ def test_catch_all_composes_over_gen():
 
     recovered = program().catch_all(lambda e: E.success(len(e.msg)))
 
-    assert E.run_sync(recovered) == E.Succeeded(value=4)
+    assert E.run_sync_exit(recovered) == E.Succeeded(value=4)
 
 
 def test_requirements_inside_gen():
@@ -90,7 +90,7 @@ def test_requirements_inside_gen():
 
     provided = program().provide(Db)(Db(answer=21))
 
-    assert E.run_sync(provided) == E.Succeeded(value=42)
+    assert E.run_sync_exit(provided) == E.Succeeded(value=42)
 
 
 def test_gen_effects_are_reusable():
@@ -104,8 +104,8 @@ def test_gen_effects_are_reusable():
 
     p = program()
 
-    assert E.run_sync(p) == E.Succeeded(value=42)
-    assert E.run_sync(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
     assert runs == [1, 1]
 
 
@@ -117,7 +117,7 @@ def test_exception_in_generator_body_becomes_a_die():
         yield from E.success(1)
         raise err
 
-    assert E.run_sync(program()) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(program()) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_gen_stack_safety():
@@ -130,7 +130,7 @@ def test_gen_stack_safety():
             total += yield from E.success(1)
         return total
 
-    assert E.run_sync(program()) == E.Succeeded(value=10_000)
+    assert E.run_sync_exit(program()) == E.Succeeded(value=10_000)
 
 
 def test_fall_off_end_returns_none():
@@ -138,7 +138,7 @@ def test_fall_off_end_returns_none():
     def program() -> E.EffectGen[None]:
         yield from E.success(1)
 
-    assert E.run_sync(program()) == E.Succeeded(value=None)
+    assert E.run_sync_exit(program()) == E.Succeeded(value=None)
 
 
 # --- bare yield: works, but the sent value types as Any, so an
@@ -155,7 +155,7 @@ def test_bare_yield_still_works():
 
     provided = program().provide(Db)(Db(answer=21))
 
-    assert E.run_sync(provided) == E.Succeeded(value=42)
+    assert E.run_sync_exit(provided) == E.Succeeded(value=42)
 
 
 def test_bare_yield_stack_safety():
@@ -166,4 +166,4 @@ def test_bare_yield_stack_safety():
             total += yield E.success(1)
         return total
 
-    assert E.run_sync(program()) == E.Succeeded(value=10_000)
+    assert E.run_sync_exit(program()) == E.Succeeded(value=10_000)

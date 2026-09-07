@@ -13,7 +13,7 @@ class OopsError(E.EffectonError):
 def test_attempt_success():
     p = E.attempt(lambda: 42, lambda e: OopsError(str(e)))
 
-    assert E.run_sync(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
 
 
 def test_attempt_exception_becomes_a_typed_failure():
@@ -22,7 +22,7 @@ def test_attempt_exception_becomes_a_typed_failure():
 
     p = E.attempt(boom, lambda e: OopsError(str(e)))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_attempt_failure_is_catchable():
@@ -33,7 +33,7 @@ def test_attempt_failure_is_catchable():
         lambda e: E.success(len(e.msg))
     )
 
-    assert E.run_sync(p) == E.Succeeded(value=4)
+    assert E.run_sync_exit(p) == E.Succeeded(value=4)
 
 
 def test_attempt_is_lazy_and_reusable():
@@ -46,8 +46,8 @@ def test_attempt_is_lazy_and_reusable():
     p = E.attempt(track, lambda e: OopsError(str(e)))
 
     assert calls == []  # Construction runs nothing.
-    assert E.run_sync(p) == E.Succeeded(value=1)
-    assert E.run_sync(p) == E.Succeeded(value=2)
+    assert E.run_sync_exit(p) == E.Succeeded(value=1)
+    assert E.run_sync_exit(p) == E.Succeeded(value=2)
     assert calls == [1, 1]
 
 
@@ -66,7 +66,7 @@ def test_attempt_reraise_in_on_error_keeps_a_defect():
 
     p = E.attempt(boom, only_value_errors)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_attempt_exception_in_on_error_becomes_a_die():
@@ -80,4 +80,4 @@ def test_attempt_exception_in_on_error_becomes_a_die():
 
     p = E.attempt(boom, broken_handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))

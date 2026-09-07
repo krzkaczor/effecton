@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import final
 
+import pytest
+
 import effecton as E
 
 # Interrupt has no public constructor; the runner tests build the node directly.
@@ -20,21 +22,85 @@ class OtherError(E.EffectonError):
 
 
 def test_bare_success():
-    assert E.run_sync(E.success(42)) == E.Succeeded(value=42)
+    assert E.run_sync_exit(E.success(42)) == E.Succeeded(value=42)
 
 
 def test_bare_fail():
-    assert E.run_sync(E.fail(OopsError("boom"))) == E.Failure(
+    assert E.run_sync_exit(E.fail(OopsError("boom"))) == E.Failure(
         cause=E.Fail(OopsError("boom"))
     )
 
 
 def test_bare_die():
-    assert E.run_sync(E.die("boom")) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(E.die("boom")) == E.Failure(cause=E.Die(defect="boom"))
+
+
+def test_run_sync_returns_the_value():
+    assert E.run_sync(E.success(42)) == 42
+
+
+def test_run_sync_raises_the_error():
+    error = OopsError("boom")
+
+    with pytest.raises(OopsError) as info:
+        E.run_sync(E.fail(error))
+
+    assert info.value is error
+
+
+def test_run_sync_reraises_an_exception_defect():
+    err = ValueError("boom")
+
+    with pytest.raises(ValueError) as info:
+        E.run_sync(E.die(err))
+
+    assert info.value is err
+
+
+def test_run_sync_wraps_a_non_exception_defect():
+    with pytest.raises(E.UnhandledDefect) as info:
+        E.run_sync(E.die("boom"))
+
+    assert info.value.defect == "boom"
+    assert str(info.value) == "Unhandled defect: 'boom'"
+
+
+def test_run_sync_reraises_the_interrupt_exception():
+    interrupt = KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt) as info:
+        E.run_sync(FailCause(cause=E.Interrupt(interrupt)))
+
+    assert info.value is interrupt
+
+
+def test_run_sync_raises_missing_requirement():
+    with pytest.raises(E.MissingRequirement) as info:
+        E.run_sync(E.require(str))  # ty: ignore[invalid-argument-type]
+
+    assert info.value.requirement_type is str
+
+
+def test_run_sync_raises_async_effect_in_sync_run():
+    async def never_awaited() -> int:
+        return 42
+
+    with pytest.raises(E.AsyncEffectInSyncRun):
+        E.run_sync(E.coroutine(never_awaited))
+
+
+def test_run_sync_runs_finalizers_before_raising():
+    actions: list[str] = []
+    p = E.fail(OopsError("boom")).on_exit(E.sync(lambda: actions.append("finalized")))
+
+    with pytest.raises(OopsError):
+        E.run_sync(p)
+
+    assert actions == ["finalized"]
 
 
 def test_map():
-    assert E.run_sync(E.success(21).map(lambda x: x * 2)) == E.Succeeded(value=42)
+    assert E.run_sync_exit(E.success(21).map(lambda x: x * 2)) == E.Succeeded(value=42)
 
 
 def test_map_skipped_on_failure():
@@ -46,7 +112,7 @@ def test_map_skipped_on_failure():
 
     p = E.fail(OopsError("boom")).map(track)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
     assert calls == []
 
 
@@ -59,7 +125,7 @@ def test_die_short_circuits_catch_all():
 
     p = E.die("boom").catch_all(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect="boom"))
     assert calls == []
 
 
@@ -72,7 +138,7 @@ def test_die_short_circuits_flat_map():
 
     p = E.die("boom").flat_map(track)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect="boom"))
     assert calls == []
 
 
@@ -85,20 +151,20 @@ def test_catch_all_on_success_is_not_called():
 
     p = E.success(42).catch_all(handler)
 
-    assert E.run_sync(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
     assert calls == []
 
 
 def test_catch_all_handler_that_fails():
     p = E.fail(OopsError("boom")).catch_all(lambda _: E.fail(OtherError(1)))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OtherError(1)))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OtherError(1)))
 
 
 def test_catch_all_rethrow():
     p = E.fail(OopsError("boom")).catch_all(lambda e: E.fail(e))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_nested_catch_all():
@@ -108,7 +174,7 @@ def test_nested_catch_all():
         .catch_all(lambda e: E.success(e.code))
     )
 
-    assert E.run_sync(p) == E.Succeeded(value=1)
+    assert E.run_sync_exit(p) == E.Succeeded(value=1)
 
 
 def test_flat_map_after_catch_all():
@@ -118,7 +184,7 @@ def test_flat_map_after_catch_all():
         .flat_map(lambda x: E.success(x + 1))
     )
 
-    assert E.run_sync(p) == E.Succeeded(value=2)
+    assert E.run_sync_exit(p) == E.Succeeded(value=2)
 
 
 def test_catch_all_after_flat_map():
@@ -128,7 +194,7 @@ def test_catch_all_after_flat_map():
         .catch_all(lambda e: E.success(e.msg))
     )
 
-    assert E.run_sync(p) == E.Succeeded(value="boom")
+    assert E.run_sync_exit(p) == E.Succeeded(value="boom")
 
 
 def test_flat_map_stack_safety():
@@ -136,7 +202,7 @@ def test_flat_map_stack_safety():
     for _ in range(10_000):
         p = p.flat_map(lambda x: E.success(x + 1))
 
-    assert E.run_sync(p) == E.Succeeded(value=10_000)
+    assert E.run_sync_exit(p) == E.Succeeded(value=10_000)
 
 
 def test_catch_all_stack_safety():
@@ -144,7 +210,7 @@ def test_catch_all_stack_safety():
     for _ in range(10_000):
         p = p.catch_all(lambda e: E.fail(e))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_effects_are_reusable_values():
@@ -156,8 +222,8 @@ def test_effects_are_reusable_values():
 
     p = E.success(21).flat_map(track)
 
-    assert E.run_sync(p) == E.Succeeded(value=42)
-    assert E.run_sync(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
     assert calls == [21, 21]
 
 
@@ -169,7 +235,7 @@ def test_exception_in_callback_becomes_a_die():
 
     p = E.success(1).flat_map(boom)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_exception_in_catch_all_handler_becomes_a_die():
@@ -180,7 +246,7 @@ def test_exception_in_catch_all_handler_becomes_a_die():
 
     p = E.fail(OopsError("original")).catch_all(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_exception_die_is_not_caught_by_downstream_catch_all():
@@ -196,14 +262,14 @@ def test_exception_die_is_not_caught_by_downstream_catch_all():
 
     p = E.success(1).flat_map(boom).catch_all(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
     assert calls == []
 
 
 def test_sync_success():
     p = E.sync(lambda: 42)
 
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
 
 
 def test_sync_dies():
@@ -214,7 +280,7 @@ def test_sync_dies():
 
     p = E.sync(sync_fn_that_throws)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_sync_is_lazy():
@@ -227,7 +293,7 @@ def test_sync_is_lazy():
     p = E.sync(track)
 
     assert calls == []
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
     assert calls == [1]
 
 
@@ -240,8 +306,8 @@ def test_sync_effects_are_reusable_values():
 
     p = E.sync(track)
 
-    assert E.run_sync(p) == E.Succeeded(42)
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
     assert calls == [1, 1]
 
 
@@ -252,7 +318,7 @@ def test_sync_composes_with_flat_map():
         .map(lambda x: x + 1)
     )
 
-    assert E.run_sync(p) == E.Succeeded(43)
+    assert E.run_sync_exit(p) == E.Succeeded(43)
 
 
 def test_sync_die_short_circuits_catch_all():
@@ -268,7 +334,7 @@ def test_sync_die_short_circuits_catch_all():
 
     p = E.sync(sync_fn_that_throws).catch_all(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
     assert calls == []
 
 
@@ -281,7 +347,7 @@ def test_sync_skipped_on_failure():
 
     p = E.fail(OopsError("boom")).flat_map(lambda _: E.sync(track))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
     assert calls == []
 
 
@@ -302,7 +368,7 @@ def test_on_exit():
 
     p = E.sync(connect_db).flat_map(lambda x: x)
 
-    assert E.run_sync(p) == E.Succeeded("db-conn")
+    assert E.run_sync_exit(p) == E.Succeeded("db-conn")
     assert actions == ["connected", "disconnected"]
 
 
@@ -311,7 +377,7 @@ def test_on_exit_runs_on_typed_failure():
 
     p = E.fail(OopsError("boom")).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
     assert actions == ["finalized"]
 
 
@@ -320,7 +386,7 @@ def test_on_exit_runs_on_defect():
 
     p = E.die("boom").on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect="boom"))
     assert actions == ["finalized"]
 
 
@@ -333,7 +399,7 @@ def test_nested_finalizers_run_inner_to_outer():
         .on_exit(E.sync(lambda: actions.append("outer")))
     )
 
-    assert E.run_sync(p) == E.Succeeded(1)
+    assert E.run_sync_exit(p) == E.Succeeded(1)
     assert actions == ["inner", "outer"]
 
 
@@ -350,7 +416,7 @@ def test_finalizer_runs_before_outer_catch_all():
         .catch_all(handler)
     )
 
-    assert E.run_sync(p) == E.Succeeded(0)
+    assert E.run_sync_exit(p) == E.Succeeded(0)
     assert actions == ["finalized", "handled:boom"]
 
 
@@ -363,10 +429,10 @@ def test_finalizer_defect_replaces_the_exit():
         raise err
 
     on_success = E.success(1).on_exit(E.sync(bad_cleanup))
-    assert E.run_sync(on_success) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(on_success) == E.Failure(cause=E.Die(defect=err))
 
     on_failure = E.fail(OopsError("boom")).on_exit(E.sync(bad_cleanup))
-    assert E.run_sync(on_failure) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(on_failure) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_on_exit_effects_are_reusable_values():
@@ -374,8 +440,8 @@ def test_on_exit_effects_are_reusable_values():
 
     p = E.success(1).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert E.run_sync(p) == E.Succeeded(1)
-    assert E.run_sync(p) == E.Succeeded(1)
+    assert E.run_sync_exit(p) == E.Succeeded(1)
+    assert E.run_sync_exit(p) == E.Succeeded(1)
     assert actions == ["finalized", "finalized"]
 
 
@@ -384,7 +450,7 @@ def test_on_exit_stack_safety():
     for _ in range(10_000):
         p = p.on_exit(E.sync(lambda: None))
 
-    assert E.run_sync(p) == E.Succeeded(0)
+    assert E.run_sync_exit(p) == E.Succeeded(0)
 
 
 def test_finalizer_requirements_are_provided():
@@ -395,7 +461,7 @@ def test_finalizer_requirements_are_provided():
 
     provided = p.provide(str)("conn")
 
-    assert E.run_sync(provided) == E.Succeeded(1)
+    assert E.run_sync_exit(provided) == E.Succeeded(1)
     assert actions == ["closed:conn"]
 
 
@@ -408,7 +474,7 @@ def test_finalizer_runs_within_its_provide_scope():
 
     provided = p.provide(str)("outer")
 
-    assert E.run_sync(provided) == E.Succeeded((1, "outer"))
+    assert E.run_sync_exit(provided) == E.Succeeded((1, "outer"))
     assert actions == ["inner"]
 
 
@@ -418,7 +484,7 @@ def test_coroutine_dies_under_run_sync():
 
     p = E.coroutine(never_awaited)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
 
 
 def test_coroutine_thunk_is_not_called_under_run_sync():
@@ -431,7 +497,7 @@ def test_coroutine_thunk_is_not_called_under_run_sync():
         calls.append(1)
         return track()
 
-    E.run_sync(E.coroutine(thunk))
+    E.run_sync_exit(E.coroutine(thunk))
 
     assert calls == []
 
@@ -444,7 +510,7 @@ def test_finalizer_runs_when_coroutine_dies_under_run_sync():
 
     p = E.coroutine(never_awaited).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
     assert actions == ["finalized"]
 
 
@@ -458,7 +524,7 @@ def test_interrupt_skips_catch_all():
     interrupt = E.Interrupt(KeyboardInterrupt())
     p = FailCause(cause=interrupt).catch_all(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=interrupt)
+    assert E.run_sync_exit(p) == E.Failure(cause=interrupt)
     assert calls == []
 
 
@@ -468,5 +534,5 @@ def test_on_exit_runs_on_interrupt():
     interrupt = E.Interrupt(KeyboardInterrupt())
     p = FailCause(cause=interrupt).on_exit(E.sync(lambda: actions.append("finalized")))
 
-    assert E.run_sync(p) == E.Failure(cause=interrupt)
+    assert E.run_sync_exit(p) == E.Failure(cause=interrupt)
     assert actions == ["finalized"]

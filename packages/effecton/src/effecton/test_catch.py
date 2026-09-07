@@ -19,7 +19,7 @@ class OtherError(E.EffectonError):
 def test_catch_matching_error_runs_handler():
     p = E.fail(OopsError("boom")).catch(OopsError)(lambda e: E.success(e.msg))
 
-    assert E.run_sync(p) == E.Succeeded(value="boom")
+    assert E.run_sync_exit(p) == E.Succeeded(value="boom")
 
 
 def test_catch_non_matching_error_propagates():
@@ -31,7 +31,7 @@ def test_catch_non_matching_error_propagates():
 
     p = E.fail(OtherError(1)).catch(OopsError)(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OtherError(1)))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OtherError(1)))
     assert calls == []
 
 
@@ -44,7 +44,7 @@ def test_catch_on_success_is_not_called():
 
     p = E.success(42).catch(OopsError)(handler)
 
-    assert E.run_sync(p) == E.Succeeded(value=42)
+    assert E.run_sync_exit(p) == E.Succeeded(value=42)
     assert calls == []
 
 
@@ -57,14 +57,14 @@ def test_die_short_circuits_catch():
 
     p = E.die("boom").catch(OopsError)(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect="boom"))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect="boom"))
     assert calls == []
 
 
 def test_catch_handler_that_fails():
     p = E.fail(OopsError("boom")).catch(OopsError)(lambda _: E.fail(OtherError(1)))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OtherError(1)))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OtherError(1)))
 
 
 def test_exception_in_catch_handler_becomes_a_die():
@@ -75,7 +75,7 @@ def test_exception_in_catch_handler_becomes_a_die():
 
     p = E.fail(OopsError("original")).catch(OopsError)(handler)
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_chained_catches_handle_a_union():
@@ -89,8 +89,8 @@ def test_chained_catches_handle_a_union():
             .catch(OtherError)(lambda e: E.success(e.code))
         )
 
-    assert E.run_sync(program(0)) == E.Succeeded(value="boom")
-    assert E.run_sync(program(7)) == E.Succeeded(value=7)
+    assert E.run_sync_exit(program(0)) == E.Succeeded(value="boom")
+    assert E.run_sync_exit(program(7)) == E.Succeeded(value=7)
 
 
 def test_catch_composes_over_gen():
@@ -101,7 +101,7 @@ def test_catch_composes_over_gen():
 
     recovered = program().catch(OopsError)(lambda e: E.success(len(e.msg)))
 
-    assert E.run_sync(recovered) == E.Succeeded(value=4)
+    assert E.run_sync_exit(recovered) == E.Succeeded(value=4)
 
 
 def test_catch_stack_safety():
@@ -109,4 +109,4 @@ def test_catch_stack_safety():
     for _ in range(10_000):
         p = p.catch(OtherError)(lambda _: E.success(0))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))

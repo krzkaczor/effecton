@@ -10,7 +10,7 @@ PATH = Path("/repo/.changeset/config.toml")
 def test_parses_the_packages_table():
     text = '[packages]\neffecton = "packages/effecton"\nother = "packages/other"\n'
 
-    result = E.run_sync(config.parse(PATH, text))
+    result = E.run_sync_exit(config.parse(PATH, text))
 
     assert result == E.Succeeded(
         value=Config(
@@ -23,7 +23,7 @@ def test_parses_the_packages_table():
 
 
 def test_rejects_invalid_toml():
-    result = E.run_sync(config.parse(PATH, "not toml ["))
+    result = E.run_sync_exit(config.parse(PATH, "not toml ["))
 
     assert isinstance(result, E.Failure)
     assert isinstance(result.cause, E.Fail)
@@ -32,7 +32,7 @@ def test_rejects_invalid_toml():
 
 
 def test_rejects_a_missing_packages_table():
-    result = E.run_sync(config.parse(PATH, "[other]\nkey = 1\n"))
+    result = E.run_sync_exit(config.parse(PATH, "[other]\nkey = 1\n"))
 
     assert result == E.Failure(
         cause=E.Fail(
@@ -44,7 +44,7 @@ def test_rejects_a_missing_packages_table():
 
 
 def test_rejects_a_non_string_package_directory():
-    result = E.run_sync(config.parse(PATH, "[packages]\neffecton = 1\n"))
+    result = E.run_sync_exit(config.parse(PATH, "[packages]\neffecton = 1\n"))
 
     assert result == E.Failure(
         cause=E.Fail(

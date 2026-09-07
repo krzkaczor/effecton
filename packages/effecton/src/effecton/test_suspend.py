@@ -14,7 +14,7 @@ class OopsError(E.EffectonError):
 
 
 def test_suspend_success():
-    assert E.run_sync(E.suspend(lambda: E.success(42))) == E.Succeeded(value=42)
+    assert E.run_sync_exit(E.suspend(lambda: E.success(42))) == E.Succeeded(value=42)
 
 
 def test_suspend_is_lazy():
@@ -27,14 +27,14 @@ def test_suspend_is_lazy():
     p = E.suspend(build)
 
     assert calls == []
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
     assert calls == [1]
 
 
 def test_suspend_propagates_failure():
     p = E.suspend(lambda: E.fail(OopsError("boom")))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_suspend_dies_when_thunk_raises():
@@ -43,7 +43,7 @@ def test_suspend_dies_when_thunk_raises():
     def explode() -> E.Effect[int]:
         raise err
 
-    assert E.run_sync(E.suspend(explode)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(E.suspend(explode)) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_suspend_effects_are_reusable_values():
@@ -55,15 +55,15 @@ def test_suspend_effects_are_reusable_values():
 
     p = E.suspend(build)
 
-    assert E.run_sync(p) == E.Succeeded(1)
-    assert E.run_sync(p) == E.Succeeded(2)
+    assert E.run_sync_exit(p) == E.Succeeded(1)
+    assert E.run_sync_exit(p) == E.Succeeded(2)
     assert calls == [1, 1]
 
 
 def test_suspend_composes_with_flat_map():
     p = E.suspend(lambda: E.success(20)).flat_map(lambda x: E.success(x + 22))
 
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
 
 
 def test_suspend_recursion_is_stack_safe():
@@ -72,7 +72,7 @@ def test_suspend_recursion_is_stack_safe():
             return E.success(0)
         return E.suspend(lambda: countdown(n - 1)).map(lambda x: x + 1)
 
-    assert E.run_sync(countdown(10_000)) == E.Succeeded(10_000)
+    assert E.run_sync_exit(countdown(10_000)) == E.Succeeded(10_000)
 
 
 # --- decorator form ---
@@ -89,7 +89,7 @@ def test_decorated_call_does_not_run_body():
     p = compute(21)
 
     assert calls == []
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
     assert calls == [21]
 
 
@@ -98,8 +98,8 @@ def test_decorated_function_forwards_args_and_kwargs():
     def combine(a: str, b: str, sep: str = " ") -> E.Effect[str]:
         return E.success(f"{a}{sep}{b}")
 
-    assert E.run_sync(combine("a", "b")) == E.Succeeded("a b")
-    assert E.run_sync(combine("a", "b", sep="-")) == E.Succeeded("a-b")
+    assert E.run_sync_exit(combine("a", "b")) == E.Succeeded("a b")
+    assert E.run_sync_exit(combine("a", "b", sep="-")) == E.Succeeded("a-b")
 
 
 def test_decorator_works_on_instance_methods():
@@ -114,7 +114,7 @@ def test_decorator_works_on_instance_methods():
     p = Service().get(1)
 
     assert calls == []
-    assert E.run_sync(p) == E.Succeeded(2)
+    assert E.run_sync_exit(p) == E.Succeeded(2)
     assert calls == [1]
 
 
@@ -127,7 +127,7 @@ def test_zero_arg_function_resolves_to_the_thunk_form():
         return E.success(42)
 
     assert calls == []
-    assert E.run_sync(config) == E.Succeeded(42)
+    assert E.run_sync_exit(config) == E.Succeeded(42)
     assert calls == [1]
 
 
@@ -136,7 +136,7 @@ def test_decorated_function_propagates_failure():
     def reject(msg: str) -> E.Effect[Never, OopsError]:
         return E.fail(OopsError(msg))
 
-    assert E.run_sync(reject("boom")) == E.Failure(cause=E.Fail(OopsError("boom")))
+    assert E.run_sync_exit(reject("boom")) == E.Failure(cause=E.Fail(OopsError("boom")))
 
 
 def test_decorated_function_dies_when_body_raises():
@@ -146,7 +146,7 @@ def test_decorated_function_dies_when_body_raises():
     def explode(_x: int) -> E.Effect[int]:
         raise err
 
-    assert E.run_sync(explode(1)) == E.Failure(cause=E.Die(defect=err))
+    assert E.run_sync_exit(explode(1)) == E.Failure(cause=E.Die(defect=err))
 
 
 def test_decorated_effects_are_reusable():
@@ -159,8 +159,8 @@ def test_decorated_effects_are_reusable():
 
     p = track(7)
 
-    assert E.run_sync(p) == E.Succeeded(7)
-    assert E.run_sync(p) == E.Succeeded(7)
+    assert E.run_sync_exit(p) == E.Succeeded(7)
+    assert E.run_sync_exit(p) == E.Succeeded(7)
     assert calls == [7, 7]
 
 

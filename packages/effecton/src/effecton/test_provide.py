@@ -25,7 +25,7 @@ def test_provide_single_requirement():
 
     provided = p.provide(str)("Kris")
 
-    assert E.run_sync(provided) == E.Succeeded("KRIS")
+    assert E.run_sync_exit(provided) == E.Succeeded("KRIS")
 
 
 def test_provide_two_requirements_in_a_chain():
@@ -35,7 +35,7 @@ def test_provide_two_requirements_in_a_chain():
 
     provided = p.provide(str)("Kris").provide(int)(5)
 
-    assert E.run_sync(provided) == E.Succeeded("KRIS50!")
+    assert E.run_sync_exit(provided) == E.Succeeded("KRIS50!")
 
 
 def test_provide_three_requirements_in_a_chain():
@@ -46,7 +46,7 @@ def test_provide_three_requirements_in_a_chain():
 
     provided = p.provide(str)("Kris").provide(int)(5).provide(float)(1.0)
 
-    assert E.run_sync(provided) == E.Succeeded("KRIS50|0.5!")
+    assert E.run_sync_exit(provided) == E.Succeeded("KRIS50|0.5!")
 
 
 def test_provide_order_does_not_matter():
@@ -54,7 +54,7 @@ def test_provide_order_does_not_matter():
 
     provided = p.provide(int)(5).provide(str)("Kris")
 
-    assert E.run_sync(provided) == E.Succeeded(("Kris", 5))
+    assert E.run_sync_exit(provided) == E.Succeeded(("Kris", 5))
 
 
 def test_provide_is_scoped_to_the_wrapped_effect():
@@ -65,13 +65,13 @@ def test_provide_is_scoped_to_the_wrapped_effect():
 
     provided = p.provide(str)("outer")
 
-    assert E.run_sync(provided) == E.Succeeded(("inner", "outer"))
+    assert E.run_sync_exit(provided) == E.Succeeded(("inner", "outer"))
 
 
 def test_innermost_provide_wins_for_the_same_key():
     p = E.require(str).provide(str)("innermost").provide(str)("outermost")
 
-    assert E.run_sync(p) == E.Succeeded("innermost")
+    assert E.run_sync_exit(p) == E.Succeeded("innermost")
 
 
 def test_inner_provide_shadows_outer_within_its_extent():
@@ -80,7 +80,7 @@ def test_inner_provide_shadows_outer_within_its_extent():
 
     provided = p.provide(str)("outer")
 
-    assert E.run_sync(provided) == E.Succeeded(("outer", "inner"))
+    assert E.run_sync_exit(provided) == E.Succeeded(("outer", "inner"))
 
 
 def test_provide_env_unwinds_on_typed_failure():
@@ -93,21 +93,21 @@ def test_provide_env_unwinds_on_typed_failure():
 
     provided = p.provide(str)("outer")
 
-    assert E.run_sync(provided) == E.Succeeded("outer")
+    assert E.run_sync_exit(provided) == E.Succeeded("outer")
 
 
 def test_over_provision_is_a_harmless_no_op():
     p = E.success(42).provide(str)("unused")
 
-    assert E.run_sync(p) == E.Succeeded(42)
+    assert E.run_sync_exit(p) == E.Succeeded(42)
 
 
 def test_provided_effects_are_reusable_values():
     calls: list[str] = []
     p = E.require(str).map(lambda s: (calls.append(s), s)[1]).provide(str)("x")
 
-    assert E.run_sync(p) == E.Succeeded("x")
-    assert E.run_sync(p) == E.Succeeded("x")
+    assert E.run_sync_exit(p) == E.Succeeded("x")
+    assert E.run_sync_exit(p) == E.Succeeded("x")
     assert calls == ["x", "x"]
 
 
@@ -116,7 +116,7 @@ def test_subclass_implementation_satisfies_the_base_key():
 
     provided = p.provide(Db)(PgDb("pg"))
 
-    assert E.run_sync(provided) == E.Succeeded("pg")
+    assert E.run_sync_exit(provided) == E.Succeeded("pg")
 
 
 def test_requirement_lookup_uses_the_exact_key_type():
@@ -125,12 +125,14 @@ def test_requirement_lookup_uses_the_exact_key_type():
     # a subclass requirement, but the lookup misses at runtime.
     p = E.require(PgDb).provide(Db)(Db("pg"))
 
-    assert E.run_sync(p) == E.Failure(cause=E.Die(defect=E.MissingRequirement(PgDb)))
+    assert E.run_sync_exit(p) == E.Failure(
+        cause=E.Die(defect=E.MissingRequirement(PgDb))
+    )
 
 
 def test_missing_requirement_dies():
     # Only reachable outside the typed API (pinned as a type error here).
-    result = E.run_sync(E.require(str))  # ty: ignore[invalid-argument-type]
+    result = E.run_sync_exit(E.require(str))  # ty: ignore[invalid-argument-type]
 
     assert result == E.Failure(cause=E.Die(defect=E.MissingRequirement(str)))
 
@@ -150,4 +152,4 @@ def test_protocol_class_as_requirement_key():
 
     provided = p.provide(Greeter)(LiveGreeter())
 
-    assert E.run_sync(provided) == E.Succeeded("hi")
+    assert E.run_sync_exit(provided) == E.Succeeded("hi")

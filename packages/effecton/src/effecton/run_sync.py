@@ -20,28 +20,36 @@ from effecton.effect import (
     Success,
     Sync,
 )
-from effecton.exit import Exit, Failure, Succeeded
+from effecton.exit import Exit, Failure, Succeeded, unwrap
 from effecton.implicit_requirement import ImplicitRequirement, resolve_default
 
 
 @final
 @dataclass(frozen=True)
-class MissingRequirement:
-    """Defect raised when an unprovided requirement is requested at runtime.
+class MissingRequirement(Exception):
+    """Defect for a requirement requested at runtime without being provided.
 
-    Unreachable through fully typed code.
+    Unreachable through fully typed code. run_sync_exit settles as
+    Failure(Die(MissingRequirement(...))); run_sync raises it.
     """
 
     requirement_type: TypeForm[Any]
 
+    def __str__(self) -> str:
+        return f"No implementation provided for requirement {self.requirement_type!r}"
+
 
 @final
 @dataclass(frozen=True)
-class AsyncEffectInSyncRun:
-    """Defect raised when run_sync reaches a coroutine effect.
+class AsyncEffectInSyncRun(Exception):
+    """Defect for a coroutine effect reached by a synchronous runner.
 
-    Only run_async can await; run this effect with run_async instead.
+    Only the run_async family can await. run_sync_exit settles as
+    Failure(Die(AsyncEffectInSyncRun())); run_sync raises it.
     """
+
+    def __str__(self) -> str:
+        return "A coroutine effect cannot run synchronously; run it with run_async"
 
 
 @final
@@ -61,7 +69,23 @@ class OnExitFrame:
 Frame = FlatMap[Any, Any, Any] | OnFailure[Any, Any, Any] | RestoreEnv | OnExitFrame
 
 
-def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
+def run_sync[A, E: EffectonError](effect: Effect[A, E]) -> A:
+    """Interpret an effect and return its value, raising on failure.
+
+    A typed failure raises the error itself, a defect re-raises the
+    exception (or UnhandledDefect for a non-exception value) and an
+    interruption re-raises the exception that signalled it. Use
+    run_sync_exit to receive the Exit instead.
+    """
+    return unwrap(run_sync_exit(effect))
+
+
+def run_sync_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
+    """Interpret an effect and return its Exit.
+
+    Coroutine effects are not awaited: reaching one settles the run as
+    Failure(Die(AsyncEffectInSyncRun())), and finalizers still run.
+    """
     stack: list[Frame] = []
     env: dict[TypeForm[Any], Any] = {}
     current: Node = effect  # ty: ignore[invalid-assignment]

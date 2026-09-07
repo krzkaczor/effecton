@@ -16,7 +16,7 @@ class ImplicitRequirement(Protocol):
 
 
 # Implicits are lazily initialized. Once initialized, the default is
-# shared across all run_sync executions.
+# shared across all runs.
 _implicit_defaults: dict[type[ImplicitRequirement], Any] = {}
 
 
