@@ -142,8 +142,6 @@ class Live(Protocol):
 
 @dataclass
 class Test(Protocol):
-    __test__ = False
-
     files: dict[Path, str] = field(default_factory=dict)
     dirs: set[Path] = field(default_factory=set)
     links: dict[Path, Path] = field(default_factory=dict)

@@ -60,8 +60,6 @@ class Live(Protocol):
 
 @dataclass(frozen=True)
 class Test(Protocol):
-    __test__ = False
-
     responses: Mapping[str, str] = field(default_factory=dict)
 
     def get_text(self, url: str) -> E.Effect[str, HttpError]:
