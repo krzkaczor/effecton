@@ -37,11 +37,37 @@ select = [
     "PTH",    # flake8-use-pathlib
     "RUF",    # ruff-specific rules
     "ANN",    # flake8-annotations
+    "TID251", # flake8-tidy-imports: banned APIs (direct time reads)
 ]
 ignore = ["ANN204"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/test_*.py" = ["ANN"]
+"packages/effecton/src/effecton/std/clock.py" = ["TID251"]
+"packages/effecton/src/effecton/std/test_clock.py" = ["TID251"]
+# yield_now is a scheduling point, not a pause.
+"packages/effecton/src/effecton/std/fiber.py" = ["TID251"]
+# Runner tests use asyncio.sleep(0) as a yield point, not as a pause.
+"packages/effecton/src/effecton/test_run_async.py" = ["TID251"]
+"packages/effecton/src/effecton/test_run_main.py" = ["TID251"]
+"packages/effecton/src/effecton/test_types_run_async.py" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "Read the time through E.now()."
+"datetime.datetime.utcnow".msg = "Read the time through E.now()."
+"datetime.datetime.today".msg = "Read the time through E.now()."
+"datetime.date.today".msg = "Read the time through E.now()."
+"time.time".msg = "Read the time through E.now()."
+"time.time_ns".msg = "Read the time through E.now()."
+"time.monotonic".msg = "Read the time through E.now()."
+"time.monotonic_ns".msg = "Read the time through E.now()."
+"time.perf_counter".msg = "Read the time through E.now()."
+"time.perf_counter_ns".msg = "Read the time through E.now()."
+"time.gmtime".msg = "Read the time through E.now()."
+"time.localtime".msg = "Read the time through E.now()."
+"time.ctime".msg = "Read the time through E.now()."
+"time.sleep".msg = "Sleep through E.sleep()."
+"asyncio.sleep".msg = "Sleep through E.sleep()."
 
 [tool.ruff.lint.isort]
 known-first-party = ["changesets", "effecton", "skills_cli"]

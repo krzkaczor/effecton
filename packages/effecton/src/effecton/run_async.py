@@ -30,6 +30,7 @@ from effecton.run_sync import (
     default_or_die,
     run_fn_or_die,
 )
+from effecton.std import clock
 
 
 @final
@@ -79,10 +80,11 @@ async def run_async_coroutine[A, E: EffectonError](effect: Effect[A, E]) -> Exit
     re-raises the carried exception. Finalizers are shielded: a
     cancellation that arrives while one is awaiting is remembered, the
     finalizer runs to completion, and the interruption is applied once
-    it settles.
+    it settles. The Clock is the awaiting AsyncLive unless the effect
+    provides another.
     """
     stack: list[Frame | Finalizing] = []
-    env: dict[TypeForm[Any], Any] = {}
+    env: dict[TypeForm[Any], Any] = {clock.Protocol: clock.AsyncLive()}
     cancelled: BaseException | None = None
     finalizing = 0
     current: Node = effect  # ty: ignore[invalid-assignment]

@@ -2,6 +2,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import final
 
 import effecton as E
@@ -104,3 +105,27 @@ def test_looks_good():
     program = E.provide_implicit(do_log(), E.MinimumLogLevel(E.LogLevel.ALL))
 
     E.run_sync_exit(program)
+
+
+def test_stamps_the_clock_time_instead_of_the_record_timestamp():
+    clock = E.Clock.Test(datetime(2024, 1, 1, 12, 34, 56, 789000, tzinfo=UTC))
+
+    with captured_pretty_records() as records:
+        E.run_sync(E.log_info("hello").provide(E.Clock.Protocol)(clock))
+
+    [record] = records
+    assert record.__dict__["effecton_date"] == clock.current
+    local = clock.current.astimezone()
+    assert (
+        E.PrettyFormatter(colors=False).format(record)
+        == f"[{local:%H:%M:%S}.789] INFO hello"
+    )
+
+
+def test_formats_plain_stdlib_records_from_their_own_timestamp():
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "plain", None, None)
+
+    text = E.PrettyFormatter(colors=False).format(record)
+
+    date = datetime.fromtimestamp(record.created)
+    assert text == f"[{date:%H:%M:%S}.{int(record.msecs):03d}] INFO plain"
