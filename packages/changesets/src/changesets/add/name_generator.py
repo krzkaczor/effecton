@@ -73,8 +73,6 @@ class Live(Protocol):
 
 @dataclass
 class Test(Protocol):
-    __test__ = False
-
     names: list[str] = field(default_factory=lambda: ["happy-pandas-dance"])
 
     @E.suspend

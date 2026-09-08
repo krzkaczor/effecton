@@ -62,8 +62,6 @@ class Live(Protocol):
 
 @dataclass
 class Test(Protocol):
-    __test__ = False
-
     subjects: dict[Path, str] = field(default_factory=dict)
     remotes: dict[str, str] = field(default_factory=dict)
 

@@ -23,8 +23,6 @@ class Live(Protocol):
 
 @dataclass
 class Test(Protocol):
-    __test__ = False
-
     answer: bool = True
     prompts: list[str] = field(default_factory=list)
 

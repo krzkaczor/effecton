@@ -38,3 +38,4 @@ unused-ignore-comment = "error"
 [tool.pytest.ini_options]
 testpaths = ["src"]
 addopts = "-q"
+collect_imported_tests = false

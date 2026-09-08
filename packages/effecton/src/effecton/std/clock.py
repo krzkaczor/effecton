@@ -90,8 +90,6 @@ class Test(Protocol):
     fixture.
     """
 
-    __test__ = False
-
     current: datetime = datetime(1970, 1, 1, tzinfo=UTC)
     _sleepers: list[tuple[datetime, asyncio.Future[None]]] = field(
         default_factory=list, repr=False, compare=False
