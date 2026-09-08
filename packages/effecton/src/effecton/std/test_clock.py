@@ -35,42 +35,35 @@ def test_protocol_has_no_default_because_runners_inject_a_clock():
         E.Clock.Protocol.default()
 
 
-def test_test_clock_returns_its_time():
-    clock = E.Clock.Test(current=JAN_FIRST)
-
-    result = E.run_sync(E.now().provide(E.Clock.Protocol)(clock))
-
-    assert result == JAN_FIRST
-
-
-def test_test_clock_starts_at_the_epoch_by_default():
-    result = E.run_sync(E.now().provide(E.Clock.Protocol)(E.Clock.Test()))
+@E.gen
+def test_test_clock_starts_at_the_epoch_by_default(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    result = yield from E.now()
 
     assert result == datetime(1970, 1, 1, tzinfo=UTC)
 
 
-def test_adjust_moves_subsequent_reads():
-    clock = E.Clock.Test(JAN_FIRST)
+@E.gen
+def test_set_time_replaces_the_current_time(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    yield from test_clock.set_time(JAN_FIRST)
 
-    @E.gen
-    def program() -> E.EffectGen[tuple[datetime, datetime]]:
-        first = yield from E.now()
-        yield from E.sync(lambda: clock.adjust(timedelta(minutes=5)))
-        second = yield from E.now()
-        return first, second
-
-    result = E.run_sync(program().provide(E.Clock.Protocol)(clock))
-
-    assert result == (JAN_FIRST, JAN_FIRST + timedelta(minutes=5))
-
-
-def test_set_time_replaces_the_current_time():
-    clock = E.Clock.Test()
-    clock.set_time(JAN_FIRST)
-
-    result = E.run_sync(E.now().provide(E.Clock.Protocol)(clock))
+    result = yield from E.now()
 
     assert result == JAN_FIRST
+
+
+@E.gen
+def test_adjust_moves_subsequent_reads(test_clock: E.Clock.Test) -> E.EffectGen[None]:
+    yield from test_clock.set_time(JAN_FIRST)
+
+    first = yield from E.now()
+    yield from test_clock.adjust(timedelta(minutes=5))
+    second = yield from E.now()
+
+    assert (first, second) == (JAN_FIRST, JAN_FIRST + timedelta(minutes=5))
 
 
 def test_override_is_scoped_to_the_wrapped_effect():
@@ -131,70 +124,68 @@ def test_sync_live_sleep_blocks_under_run_async():
     assert time.monotonic() - start >= 0.01
 
 
-def test_test_clock_sleep_parks_until_adjust_reaches_the_wake_time():
-    clock = E.Clock.Test(JAN_FIRST)
-    p = E.sleep(timedelta(minutes=5)).flat_map(lambda _: E.now())
+@E.gen
+def test_test_clock_sleep_parks_until_adjust_reaches_the_wake_time(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    yield from test_clock.set_time(JAN_FIRST)
+    sleeper = E.sleep(timedelta(minutes=5)).flat_map(lambda _: E.now())
+    fiber = yield from E.fork(sleeper.provide(E.Clock.Protocol)(test_clock))
 
-    async def main():
-        task = asyncio.create_task(
-            E.run_async_coroutine(p.provide(E.Clock.Protocol)(clock))
-        )
-        await asyncio.sleep(0)
-        parked_before = not task.done()
-        clock.adjust(timedelta(minutes=4))
-        await asyncio.sleep(0)
-        parked_after_partial = not task.done()
-        clock.adjust(timedelta(minutes=1))
-        return parked_before, parked_after_partial, await task
+    yield from test_clock.adjust(timedelta(minutes=4))
+    parked = yield from fiber.poll()
+    yield from test_clock.adjust(timedelta(minutes=1))
+    result = yield from fiber.wait()
 
-    parked_before, parked_after_partial, result = asyncio.run(main())
-
-    assert parked_before
-    assert parked_after_partial
+    assert parked is None
     assert result == E.Succeeded(JAN_FIRST + timedelta(minutes=5))
 
 
-def test_test_clock_set_time_past_the_wake_time_wakes_the_sleeper():
-    clock = E.Clock.Test(JAN_FIRST)
-    p = E.sleep(timedelta(minutes=5)).provide(E.Clock.Protocol)(clock)
+@E.gen
+def test_test_clock_set_time_past_the_wake_time_wakes_the_sleeper(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    yield from test_clock.set_time(JAN_FIRST)
+    sleeper = E.sleep(timedelta(minutes=5)).provide(E.Clock.Protocol)(test_clock)
+    fiber = yield from E.fork(sleeper)
 
-    async def main():
-        task = asyncio.create_task(E.run_async_coroutine(p))
-        await asyncio.sleep(0)
-        clock.set_time(JAN_FIRST + timedelta(hours=1))
-        return await task
+    yield from test_clock.set_time(JAN_FIRST + timedelta(hours=1))
+    result = yield from fiber.wait()
 
-    assert asyncio.run(main()) == E.Succeeded(None)
+    assert result == E.Succeeded(None)
 
 
-def test_test_clock_wakes_every_sleeper_that_is_due():
-    clock = E.Clock.Test(JAN_FIRST)
+@E.gen
+def test_test_clock_wakes_every_sleeper_that_is_due(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
     order: list[str] = []
 
     def sleeper(name: str, minutes: int) -> E.Effect[None]:
         return (
             E.sleep(timedelta(minutes=minutes))
             .map(lambda _: order.append(name))
-            .provide(E.Clock.Protocol)(clock)
+            .provide(E.Clock.Protocol)(test_clock)
         )
 
-    async def main():
-        short = asyncio.create_task(E.run_async_coroutine(sleeper("short", 1)))
-        long = asyncio.create_task(E.run_async_coroutine(sleeper("long", 10)))
-        await asyncio.sleep(0)
-        clock.adjust(timedelta(minutes=10))
-        await asyncio.gather(short, long)
+    short = yield from E.fork(sleeper("short", 1))
+    long = yield from E.fork(sleeper("long", 10))
 
-    asyncio.run(main())
+    yield from test_clock.adjust(timedelta(minutes=10))
+    yield from short.join()
+    yield from long.join()
 
     assert sorted(order) == ["long", "short"]
 
 
-def test_test_clock_sleep_of_zero_returns_without_adjust():
-    clock = E.Clock.Test(JAN_FIRST)
-    p = E.sleep(timedelta(0)).flat_map(lambda _: E.now())
+@E.gen
+def test_test_clock_sleep_of_zero_returns_without_adjust(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    yield from test_clock.set_time(JAN_FIRST)
 
-    result = E.run_async(p.provide(E.Clock.Protocol)(clock))
+    yield from E.sleep(timedelta(0))
+    result = yield from E.now()
 
     assert result == JAN_FIRST
 
@@ -205,19 +196,24 @@ def test_test_clock_sleep_is_async_only():
     assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
 
 
-def test_test_clock_cancelled_sleep_is_forgotten():
-    clock = E.Clock.Test(JAN_FIRST)
-    p = E.sleep(timedelta(minutes=5)).provide(E.Clock.Protocol)(clock)
+def test_test_clock_movers_are_async_only():
+    p = E.Clock.Test().adjust(timedelta(minutes=1))
 
-    async def main():
-        task = asyncio.create_task(E.run_async_coroutine(p))
-        await asyncio.sleep(0)
-        task.cancel()
-        outcome = await task
-        clock.adjust(timedelta(minutes=5))
-        return outcome
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
 
-    match asyncio.run(main()):
+
+@E.gen
+def test_test_clock_cancelled_sleep_is_forgotten(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    sleeper = E.sleep(timedelta(minutes=5)).provide(E.Clock.Protocol)(test_clock)
+    fiber = yield from E.fork(sleeper)
+    yield from E.yield_now()  # let the fiber park
+
+    outcome = yield from fiber.interrupt()
+    yield from test_clock.adjust(timedelta(minutes=5))
+
+    match outcome:
         case E.Failure(E.Interrupt(exception)):
             assert isinstance(exception, asyncio.CancelledError)
         case other:

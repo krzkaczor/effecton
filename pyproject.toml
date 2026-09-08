@@ -45,6 +45,8 @@ ignore = ["ANN204"]
 "**/test_*.py" = ["ANN"]
 "packages/effecton/src/effecton/std/clock.py" = ["TID251"]
 "packages/effecton/src/effecton/std/test_clock.py" = ["TID251"]
+# yield_now is a scheduling point, not a pause.
+"packages/effecton/src/effecton/std/fiber.py" = ["TID251"]
 # Runner tests use asyncio.sleep(0) as a yield point, not as a pause.
 "packages/effecton/src/effecton/test_run_async.py" = ["TID251"]
 "packages/effecton/src/effecton/test_run_main.py" = ["TID251"]

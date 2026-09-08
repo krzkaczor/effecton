@@ -84,8 +84,10 @@ class Test(Protocol):
 
     Pass current to start elsewhere; the default is the Unix epoch. sleep
     is async only: it parks until adjust or set_time moves the clock to
-    or past the wake time, so a test drives a sleeping program from
-    outside the run.
+    or past the wake time. Both movers are effects, so a test written as
+    an effect moves the clock with yield from, and the effecton pytest
+    plugin provides this clock to such a test through its test_clock
+    fixture.
     """
 
     __test__ = False
@@ -114,12 +116,25 @@ class Test(Protocol):
 
         return coroutine(wait)
 
-    def adjust(self, delta: timedelta) -> None:
-        self.set_time(self.current + delta)
+    def adjust(self, delta: timedelta) -> Effect[None]:
+        return self.set_time(self.current + delta)
 
-    def set_time(self, time: datetime) -> None:
-        self.current = time
-        due = [sleeper for sleeper in self._sleepers if sleeper[0] <= time]
-        for sleeper in due:
-            self._sleepers.remove(sleeper)
-            sleeper[1].set_result(None)
+    def set_time(self, time: datetime) -> Effect[None]:
+        """Move the clock, waking every sleeper whose wake time has come.
+
+        Async only, like sleep. The move yields to the loop before and
+        after, so a program forked just before reaches its sleep and
+        registers, and the woken programs progress before the caller
+        continues.
+        """
+
+        async def move() -> None:
+            await asyncio.sleep(0)
+            self.current = time
+            due = [sleeper for sleeper in self._sleepers if sleeper[0] <= time]
+            for sleeper in due:
+                self._sleepers.remove(sleeper)
+                sleeper[1].set_result(None)
+            await asyncio.sleep(0)
+
+        return coroutine(move)

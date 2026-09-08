@@ -402,25 +402,40 @@ E.run_sync(E.sleep(timedelta(seconds=1)))  # blocks for a second
 E.run_async(E.sleep(timedelta(seconds=1)))  # awaits asyncio.sleep(1)
 ```
 
-In tests, provide `E.Clock.Test` and move it by hand. Its `sleep` is async only: it parks until `adjust` or `set_time` moves the clock to or past the wake time, so a test drives a sleeping program from outside the run, and a sleep of zero returns at once.
+In tests, use `E.Clock.Test` and move it by hand with `adjust(delta)` or `set_time(time)`. Both return effects and are async only, like the clock's `sleep`, which parks until a move reaches its wake time (a sleep of zero returns at once). effecton ships a pytest plugin, loaded automatically wherever the package is installed, that runs a test returning an effect (typically a `@E.gen` function) under the async runner and reports a failure as its cause. A test that requests the `test_clock` fixture gets that clock provided to its effect, so `E.now()`, `E.sleep()` and the movers all see it:
 
 ```python
-clock = E.Clock.Test(datetime(2024, 1, 1, tzinfo=UTC))
-program = E.sleep(timedelta(minutes=5)).flat_map(lambda _: E.now())
+@E.gen
+def test_reads_move_with_the_clock(test_clock: E.Clock.Test) -> E.EffectGen[None]:
+    yield from test_clock.set_time(datetime(2024, 1, 1, tzinfo=UTC))
 
+    first = yield from E.now()
+    yield from test_clock.adjust(timedelta(minutes=5))
+    second = yield from E.now()
 
-async def main():
-    task = asyncio.create_task(
-        E.run_async_coroutine(program.provide(E.Clock.Protocol)(clock))
-    )
-    await asyncio.sleep(0)  # the program is parked in sleep
-    clock.adjust(timedelta(minutes=5))  # or clock.set_time(...)
-    return await task  # Succeeded(2024-01-01 00:05)
+    assert second == first + timedelta(minutes=5)
 ```
+
+A sleeping program has to run concurrently with the moves: `E.fork` it and settle on the returned fiber. Each move yields to the loop before and after, so a program forked just before reaches its sleep, and a woken program progresses before the test continues.
 
 Provide clocks with `.provide(E.Clock.Protocol)(...)`: `provide_implicit` is keyed by `type(value)`, so it would register a `Test` clock under `Test` rather than `Protocol`. This repo's ruff config bans direct time reads and sleeps (`datetime.now`, `time.time`, `time.monotonic`, `time.sleep`, `asyncio.sleep`, ...) outside the clock module, so all code goes through `E.now()` and `E.sleep()`.
 
 More examples: [`test_clock.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_clock.py).
+
+### Fibers
+
+`E.fork(effect)` starts an effect concurrently and returns an `E.Fiber`. `fiber.join()` is the fiber's value, failing with the fiber's own cause; `fiber.wait()` is its `Exit` and never fails; `fiber.poll()` peeks without waiting; `fiber.interrupt()` cancels it, lets its finalizers run and returns the `Exit`; `E.yield_now()` lets other fibers take a turn. Fibers are asyncio tasks underneath, so `fork` is async only and a forked run starts with a fresh environment: provide what it needs.
+
+```python
+@E.gen
+def program() -> E.EffectGen[int]:
+    fiber = yield from E.fork(fetch_total())  # runs concurrently
+    other = yield from do_other_work()
+    total = yield from fiber.join()  # Effect[int, FetchError]
+    return total + other
+```
+
+More examples: [`test_fiber.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_fiber.py).
 
 ## Roadmap
 

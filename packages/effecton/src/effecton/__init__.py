@@ -31,6 +31,7 @@ from effecton.run_sync import (
 from effecton.std import clock as Clock
 from effecton.std.clock import _now as now
 from effecton.std.clock import _sleep as sleep
+from effecton.std.fiber import Fiber, fork, yield_now
 from effecton.std.logger import (
     CurrentLogAnnotations,
     CurrentLoggers,
@@ -68,6 +69,7 @@ __all__ = [
     "Exit",
     "Fail",
     "Failure",
+    "Fiber",
     "ImplicitRequirement",
     "Interrupt",
     "LogData",
@@ -87,6 +89,7 @@ __all__ = [
     "coroutine",
     "die",
     "fail",
+    "fork",
     "gen",
     "log",
     "log_debug",
@@ -111,4 +114,5 @@ __all__ = [
     "success",
     "suspend",
     "sync",
+    "yield_now",
 ]
