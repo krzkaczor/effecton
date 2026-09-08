@@ -28,6 +28,9 @@ from effecton.run_sync import (
     run_sync,
     run_sync_exit,
 )
+from effecton.std import clock as Clock
+from effecton.std.clock import _now as now
+from effecton.std.clock import _sleep as sleep
 from effecton.std.logger import (
     CurrentLogAnnotations,
     CurrentLoggers,
@@ -53,6 +56,7 @@ from effecton.suspend import suspend
 __all__ = [
     "AsyncEffectInSyncRun",
     "Cause",
+    "Clock",
     "CurrentLogAnnotations",
     "CurrentLogLevel",
     "CurrentLoggers",
@@ -91,6 +95,7 @@ __all__ = [
     "log_info",
     "log_trace",
     "log_warning",
+    "now",
     "pretty_logger",
     "provide_implicit",
     "require",
@@ -102,6 +107,7 @@ __all__ = [
     "run_sync",
     "run_sync_exit",
     "scoped",
+    "sleep",
     "success",
     "suspend",
     "sync",

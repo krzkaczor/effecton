@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, cast, final
+from typing import Any, Protocol, cast, final, runtime_checkable
 
 import effecton as E
 
@@ -109,3 +109,30 @@ def test_plain_missing_requirement_still_dies():
     assert E.run_sync_exit(cast(Any, E.require(Db))) == E.Failure(
         cause=E.Die(defect=E.MissingRequirement(Db))
     )
+
+
+def test_a_protocol_with_a_concrete_default_is_an_implicit_requirement():
+    @runtime_checkable
+    class Greeter(E.ImplicitRequirement, Protocol):
+        def greet(self) -> str: ...
+
+        @classmethod
+        def default(cls) -> Greeter:
+            return Polite()
+
+    @final
+    @dataclass(frozen=True)
+    class Polite(Greeter):
+        def greet(self) -> str:
+            return "hello"
+
+    @final
+    @dataclass(frozen=True)
+    class Rude(Greeter):
+        def greet(self) -> str:
+            return "hey"
+
+    program = E.require_implicit(Greeter).map(lambda greeter: greeter.greet())
+
+    assert E.run_sync_exit(program) == E.Succeeded(value="hello")
+    assert E.run_sync_exit(program.provide(Greeter)(Rude())) == E.Succeeded(value="hey")

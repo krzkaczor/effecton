@@ -8,6 +8,7 @@ from typing import Literal, assert_never, final
 from effecton.effect import Effect, EffectonError, ProvideRequirement
 from effecton.gen import EffectGen, gen
 from effecton.implicit_requirement import ImplicitRequirement, require_implicit
+from effecton.std.clock import _now
 
 
 @final
@@ -66,6 +67,7 @@ class LogData:
     message: tuple[object, ...]
     log_level: Severity
     date: datetime
+    """Timezone-aware UTC, read from the Clock service."""
     annotations: Mapping[str, object]
 
 
@@ -201,7 +203,7 @@ def _log_with_level(
     loggers = yield from require_implicit(CurrentLoggers)
     annotations = yield from require_implicit(CurrentLogAnnotations)
 
-    date = datetime.now()
+    date = yield from _now()
     for logger in loggers.loggers:
         logger.log(
             LogData(

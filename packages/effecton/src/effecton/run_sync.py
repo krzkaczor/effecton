@@ -22,6 +22,7 @@ from effecton.effect import (
 )
 from effecton.exit import Exit, Failure, Succeeded, unwrap
 from effecton.implicit_requirement import ImplicitRequirement, resolve_default
+from effecton.std import clock
 
 
 @final
@@ -84,10 +85,11 @@ def run_sync_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
     """Interpret an effect and return its Exit.
 
     Coroutine effects are not awaited: reaching one settles the run as
-    Failure(Die(AsyncEffectInSyncRun())), and finalizers still run.
+    Failure(Die(AsyncEffectInSyncRun())), and finalizers still run. The
+    Clock is the blocking SyncLive unless the effect provides another.
     """
     stack: list[Frame] = []
-    env: dict[TypeForm[Any], Any] = {}
+    env: dict[TypeForm[Any], Any] = {clock.Protocol: clock.SyncLive()}
     current: Node = effect  # ty: ignore[invalid-assignment]
 
     while True:
@@ -173,8 +175,9 @@ def default_or_die(requirement_type: TypeForm[Any]) -> Node:
     if (
         isinstance(requirement_type, type)
         and issubclass(requirement_type, ImplicitRequirement)
-        # Exclude the protocol class itself
-        and not getattr(requirement_type, "_is_protocol", False)
+        # Exclude the protocol class itself; its stub default() returns None.
+        # Protocol subclasses with a concrete default() are fine (see std.clock).
+        and requirement_type is not ImplicitRequirement
     ):
         try:
             return Success(resolve_default(requirement_type))

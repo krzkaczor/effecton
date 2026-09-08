@@ -61,7 +61,9 @@ class PrettyFormatter(logging.Formatter):
     color per level; colors=None detects whether stderr is a terminal.
     effecton annotations travel on the record as the effecton_annotations
     attribute (through ``extra``) and each renders as one indented
-    ``key: value`` line.
+    ``key: value`` line. The Clock time travels as effecton_date and, when
+    present, replaces the record's own timestamp in the stamp; plain stdlib
+    records fall back to record.created.
     """
 
     def __init__(self, *, colors: bool | None = None) -> None:
@@ -75,8 +77,14 @@ class PrettyFormatter(logging.Formatter):
             return f"{code}{text}{_ANSI_RESET}" if use_color else text
 
         severity = _severity_for_levelno(record.levelno)
-        date = datetime.fromtimestamp(record.created)
-        stamp = f"{date:%H:%M:%S}.{int(record.msecs):03d}"
+        clock_date = record.__dict__.get("effecton_date")
+        if isinstance(clock_date, datetime):
+            date = clock_date.astimezone()
+            millis = date.microsecond // 1000
+        else:
+            date = datetime.fromtimestamp(record.created)
+            millis = int(record.msecs)
+        stamp = f"{date:%H:%M:%S}.{millis:03d}"
         header = (
             f"{paint(_ANSI_DIM, f'[{stamp}]')} "
             f"{paint(_severity_ansi(severity), severity.name)}"
@@ -112,7 +120,10 @@ def _pretty_log(options: LogData) -> None:
     _pretty_python_logger.log(
         _to_python_logger_level(options.log_level),
         text,
-        extra={"effecton_annotations": options.annotations},
+        extra={
+            "effecton_annotations": options.annotations,
+            "effecton_date": options.date,
+        },
     )
 
 

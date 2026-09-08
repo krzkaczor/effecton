@@ -264,7 +264,7 @@ E.run_sync(E.require_implicit(Greeting))  # Greeting("hello") — nothing provid
 E.run_sync(E.provide_implicit(E.require_implicit(Greeting), Greeting("hi")))
 ```
 
-`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. Overrides also compose in a `provide` chain: `effect.provide(Greeting)(Greeting("hi"))`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
+`provide_implicit(effect, value)` is keyed by `type(value)`, so mark implicit requirement classes `@final`. A `typing.Protocol` that extends `ImplicitRequirement` with a concrete `default()` is an implicit requirement too; its implementations are provided with `effect.provide(Protocol)(impl)` (the std `Clock` service works this way). Overrides also compose in a `provide` chain: `effect.provide(Greeting)(Greeting("hi"))`. `require_implicit` is a separate accessor rather than an overload on `require` because the overload pair silently drops requirements from `R` in some inference positions (pinned in `test_types_implicit_requirement.py`). One footgun: the runtime check only tests that a `default` attribute exists, so a plain requirement class that defines one gets the default fallback instead of a `MissingRequirement` defect.
 
 More examples: [`test_implicit_requirement.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/test_implicit_requirement.py).
 
@@ -391,6 +391,36 @@ E.run_sync(
 ```
 
 More examples: [`test_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_logger.py), [`test_pretty_logger.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_pretty_logger.py).
+
+### Clock
+
+`E.now()` reads the current time and `E.sleep(duration)` pauses, both through the implicit `E.Clock` service, so neither enters `R`. `now()` returns a timezone-aware UTC `datetime` and is what the logger stamps `LogData.date` with. Sleeping depends on the runner, so the `Clock` protocol has no `default()`; instead there are two live clocks and each runner injects the matching one: `run_sync` installs `E.Clock.SyncLive`, whose sleep blocks the thread, and the `run_async` family (including `run_main`) installs `E.Clock.AsyncLive`, whose sleep awaits `asyncio.sleep`, keeps the loop turning and is interrupted by a cancellation like any coroutine effect.
+
+```python
+E.run_sync(E.now())  # datetime.now(UTC), no setup needed
+E.run_sync(E.sleep(timedelta(seconds=1)))  # blocks for a second
+E.run_async(E.sleep(timedelta(seconds=1)))  # awaits asyncio.sleep(1)
+```
+
+In tests, provide `E.Clock.Test` and move it by hand. Its `sleep` is async only: it parks until `adjust` or `set_time` moves the clock to or past the wake time, so a test drives a sleeping program from outside the run, and a sleep of zero returns at once.
+
+```python
+clock = E.Clock.Test(datetime(2024, 1, 1, tzinfo=UTC))
+program = E.sleep(timedelta(minutes=5)).flat_map(lambda _: E.now())
+
+
+async def main():
+    task = asyncio.create_task(
+        E.run_async_coroutine(program.provide(E.Clock.Protocol)(clock))
+    )
+    await asyncio.sleep(0)  # the program is parked in sleep
+    clock.adjust(timedelta(minutes=5))  # or clock.set_time(...)
+    return await task  # Succeeded(2024-01-01 00:05)
+```
+
+Provide clocks with `.provide(E.Clock.Protocol)(...)`: `provide_implicit` is keyed by `type(value)`, so it would register a `Test` clock under `Test` rather than `Protocol`. This repo's ruff config bans direct time reads and sleeps (`datetime.now`, `time.time`, `time.monotonic`, `time.sleep`, `asyncio.sleep`, ...) outside the clock module, so all code goes through `E.now()` and `E.sleep()`.
+
+More examples: [`test_clock.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_clock.py).
 
 ## Roadmap
 

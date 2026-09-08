@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import effecton as E
 
 
@@ -130,3 +132,16 @@ def test_log_effects_are_reusable_values():
     E.run_sync_exit(effect)
 
     assert len(entries) == 2
+
+
+def test_log_data_date_comes_from_the_clock():
+    entries, loggers = capture()
+    clock = E.Clock.Test(datetime(2024, 1, 1, tzinfo=UTC))
+    program = E.provide_implicit(E.log_info("hello"), loggers).provide(
+        E.Clock.Protocol
+    )(clock)
+
+    E.run_sync(program)
+
+    [entry] = entries
+    assert entry.date == datetime(2024, 1, 1, tzinfo=UTC)
