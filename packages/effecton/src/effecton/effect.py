@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, Never, final
 
 from typing_extensions import TypeForm
@@ -8,6 +9,7 @@ if TYPE_CHECKING:
     from effecton.catch import CatchBinder
     from effecton.provide import ProvideBinder
     from effecton.std.scope import Scope
+    from effecton.std.timeout import TimeoutException
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,11 @@ class Effect[A, E: EffectonError = Never, R = Never]:
         from effecton.std.scope import scoped
 
         return scoped(self)
+
+    def timeout(self, duration: timedelta) -> Effect[A, E | TimeoutException, R]:
+        from effecton.std.timeout import timeout
+
+        return timeout(duration)(self)
 
     def __iter__(self) -> Generator[Effect[A, E, R], Any, A]:
         """Make ``x = yield from effect`` infer ``x`` as A inside @gen.
@@ -160,6 +167,14 @@ class OnExit[A, E: EffectonError, R](Effect[A, E, R]):
     kind: Literal["on_exit"] = "on_exit"
 
 
+@final
+@dataclass(frozen=True)
+class RaceFirst[A, E: EffectonError, R](Effect[A, E, R]):
+    left: Effect[A, E, R]
+    right: Effect[A, E, R]
+    kind: Literal["race_first"] = "race_first"
+
+
 Node = (
     Success[Any]
     | Sync[Any]
@@ -170,6 +185,7 @@ Node = (
     | Require[Any]
     | ProvideRequirement[Any, Any, Any]
     | OnExit[Any, Any, Any]
+    | RaceFirst[Any, Any, Any]
 )
 
 

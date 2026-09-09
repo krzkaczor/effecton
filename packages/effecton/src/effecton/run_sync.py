@@ -16,6 +16,7 @@ from effecton.effect import (
     OnExit,
     OnFailure,
     ProvideRequirement,
+    RaceFirst,
     Require,
     Success,
     Sync,
@@ -149,7 +150,7 @@ def run_sync_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                 except Exception as e:
                     current = FailCause(cause=Die(defect=e))
 
-            case Coroutine():
+            case Coroutine() | RaceFirst():
                 current = FailCause(cause=Die(defect=AsyncEffectInSyncRun()))
 
             case Require(requirement_type):
