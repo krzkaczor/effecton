@@ -437,12 +437,53 @@ def program() -> E.EffectGen[int]:
 
 More examples: [`test_fiber.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_fiber.py).
 
+### Racing
+
+`E.race_first(left, right)` returns the first completed outcome, whether success, typed failure, defect, or interruption. It interrupts the loser and awaits its finalizers; loser cleanup cannot replace the winner's outcome. The left wins when both are complete at selection. Cancelling the parent waits for both branches to finish cleanup.
+
+Both branches inherit surrounding requirements, including the Clock, and the result carries the union of their value, error, and requirement types. Racing is async only: synchronous runners report `AsyncEffectInSyncRun`.
+
+```python
+# Stop the heartbeat when the operation completes; a heartbeat failure
+# also stops the operation.
+program = E.race_first(fetch_total(), heartbeat_forever())
+```
+
+Resource lifetime follows the owning scope: use `branch.scoped()` to release that branch's resources before the race returns. Resources acquired into a surrounding scope live until that scope closes. Racing `fiber.join()` interrupts the waiter; the independently forked fiber keeps running.
+
+More examples: [`test_race.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_race.py).
+
+### Timeouts
+
+`effect.timeout(duration)` composes `race_first` with Clock sleep followed by a typed `TimeoutException`. If the deadline wins, it interrupts the effect and awaits its finalizers. The effect's own outcome, or a defect in the clock, otherwise propagates unchanged. Timeouts are async only, with the same requirement inheritance and cleanup rules as racing.
+
+```python
+fetch_total().timeout(
+    timedelta(seconds=5)
+)  # Effect[int, FetchError | TimeoutException]
+
+
+@E.timeout(timedelta(seconds=5))
+@E.gen
+def fetch_user(user_id: int) -> E.EffectGen[User, FetchError]: ...
+
+
+fetch_user(1).catch(E.TimeoutException)(lambda _: E.success(None))
+# Effect[User | None, FetchError]
+```
+
+`E.timeout(duration)(effect)` is the curried form; decorating an effect-returning function wraps each result and preserves its call signature. Durations are `timedelta` values. Cancellation is cooperative: blocking synchronous work can delay a timeout, and cleanup can extend the total time beyond the deadline.
+
+For deterministic tests, provide `E.Clock.Test` around the timeout, fork the program, then advance the clock and await the fiber. Both race branches start eagerly when the race runs, so the timer is registered before a subsequent clock adjustment.
+
+More examples: [`test_timeout.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_timeout.py).
+
 ## Roadmap
 
 - [x] `ty` support
 - [x] Support for async/sync code
 - [ ] Retries
-- [ ] Timeouts
+- [x] Timeouts
 - [ ] `Random` implicit service
 - [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
 

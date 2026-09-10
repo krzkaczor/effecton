@@ -51,7 +51,9 @@ from effecton.std.logger import (
     log_warning,
 )
 from effecton.std.pretty_logger import PrettyFormatter, pretty_logger
+from effecton.std.race import race_first
 from effecton.std.scope import Scope, acquire_and_release, add_finalizer, scoped
+from effecton.std.timeout import TimeoutException, timeout
 from effecton.suspend import suspend
 
 __all__ = [
@@ -80,6 +82,7 @@ __all__ = [
     "Scope",
     "Severity",
     "Succeeded",
+    "TimeoutException",
     "UnhandledDefect",
     "acquire_and_release",
     "add_finalizer",
@@ -101,6 +104,7 @@ __all__ = [
     "now",
     "pretty_logger",
     "provide_implicit",
+    "race_first",
     "require",
     "require_implicit",
     "run_async",
@@ -114,5 +118,6 @@ __all__ = [
     "success",
     "suspend",
     "sync",
+    "timeout",
     "yield_now",
 ]

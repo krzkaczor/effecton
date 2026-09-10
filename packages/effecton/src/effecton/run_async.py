@@ -18,6 +18,7 @@ from effecton.effect import (
     OnExit,
     OnFailure,
     ProvideRequirement,
+    RaceFirst,
     Require,
     Success,
     Sync,
@@ -83,8 +84,14 @@ async def run_async_coroutine[A, E: EffectonError](effect: Effect[A, E]) -> Exit
     it settles. The Clock is the awaiting AsyncLive unless the effect
     provides another.
     """
+    return await _interpret(effect, {clock.Protocol: clock.AsyncLive()})
+
+
+async def _interpret[A, E: EffectonError](
+    effect: Effect[A, E, Any], env: dict[TypeForm[Any], Any]
+) -> Exit[A, E]:
+    """Run an effect with the environment supplied by the runner or a race."""
     stack: list[Frame | Finalizing] = []
-    env: dict[TypeForm[Any], Any] = {clock.Protocol: clock.AsyncLive()}
     cancelled: BaseException | None = None
     finalizing = 0
     current: Node = effect  # ty: ignore[invalid-assignment]
@@ -129,6 +136,36 @@ async def run_async_coroutine[A, E: EffectonError](effect: Effect[A, E]) -> Exit
             except BaseException as e:
                 unwind(e)
         return guarded(lambda: Success(inner.result()))
+
+    async def race(left: Effect[Any, Any, Any], right: Effect[Any, Any, Any]) -> Node:
+        tasks = [
+            asyncio.create_task(_interpret(left, env), eager_start=True),
+            asyncio.create_task(_interpret(right, env), eager_start=True),
+        ]
+        interrupted: BaseException | None = None
+        try:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            winner = tasks[0] if tasks[0].done() else tasks[1]
+        except BaseException as exc:
+            interrupted = exc
+        finally:
+            for task in tasks:
+                task.cancel()
+            # wait does not forward cancellation to the children. Keep
+            # draining them even if the parent is cancelled repeatedly.
+            while not all(task.done() for task in tasks):
+                try:
+                    await asyncio.wait(tasks)
+                except BaseException as exc:
+                    if interrupted is None:
+                        interrupted = exc
+        if interrupted is not None:
+            raise interrupted
+        match winner.result():
+            case Succeeded(value):
+                return Success(value)
+            case Failure(cause):
+                return FailCause(cause=cause)
 
     while True:
         match current:
@@ -221,6 +258,13 @@ async def run_async_coroutine[A, E: EffectonError](effect: Effect[A, E]) -> Exit
             case OnExit(first, finalizer):
                 stack.append(OnExitFrame(finalizer))
                 current = first  # ty: ignore[invalid-assignment]
+
+            case RaceFirst(left, right):
+                # Go through Coroutine so racing inside a finalizer uses
+                # the same cancellation shielding as every other await.
+                current = FlatMap(
+                    Coroutine(lambda: race(left, right)), lambda node: node
+                )
 
             case _:
                 assert_never(current)
