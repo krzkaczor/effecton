@@ -71,19 +71,19 @@ def test_test_generator_seed_defaults_to_zero():
 
 @pytest.mark.parametrize("seed", [0, 1, 42])
 def test_test_generator_repeats_its_draws_for_a_seed(seed: int):
+    @E.gen
+    def draw_everything() -> E.EffectGen[list[float | str | list[str]]]:
+        rng = yield from E.random()
+
+        x = yield from rng.random()
+        y = yield from rng.uniform(1, 2)
+        z = yield from rng.randint(1, 100)
+        c = yield from rng.choice(ITEMS)
+        s = yield from rng.shuffle(ITEMS)
+        return [x, y, z, c, s]
+
     def draws(service: E.Random.Test) -> list[float | str | list[str]]:
-        program = E.random().flat_map(
-            lambda r: r.random().flat_map(
-                lambda x: r.uniform(1, 2).flat_map(
-                    lambda y: r.randint(1, 100).flat_map(
-                        lambda z: r.choice(ITEMS).flat_map(
-                            lambda c: r.shuffle(ITEMS).map(lambda s: [x, y, z, c, s])
-                        )
-                    )
-                )
-            )
-        )
-        provided = program.provide(E.Random.Protocol)(service)
+        provided = draw_everything().provide(E.Random.Protocol)(service)
         return E.run_sync(provided) + E.run_sync(provided)
 
     first = draws(E.Random.Test(seed))

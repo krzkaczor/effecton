@@ -14,6 +14,7 @@ from itertools import count, repeat
 from typing import final
 
 from effecton.effect import Effect, success
+from effecton.gen import EffectGen, gen
 from effecton.std.random import _random
 
 
@@ -56,14 +57,13 @@ class Schedule:
         makes the jitter deterministic.
         """
 
-        def jitter(step: Effect[timedelta]) -> Effect[timedelta]:
-            return step.flat_map(
-                lambda delay: (
-                    _random()
-                    .flat_map(lambda rng: rng.uniform(min, max))
-                    .map(lambda factor: delay * factor)
-                )
-            )
+        @gen
+        def jitter(step: Effect[timedelta]) -> EffectGen[timedelta]:
+            rng = yield from _random()
+
+            delay = yield from step
+            factor = yield from rng.uniform(min, max)
+            return delay * factor
 
         return Schedule(lambda: map(jitter, self.steps()))
 
