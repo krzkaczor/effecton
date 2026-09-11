@@ -8,7 +8,7 @@ Verify every change as follows:
 
 - `uv run ut fix` is the verification gate: ruff format, then ruff check with fixes, then `ty check`, then pytest. Run it before finishing any change.
 - Run everything through `uv run` (tasks via `uv run ut <task>`, defined in `[tool.ut.tasks]`), never through bare `python3`.
-- Type behavior is pinned in `src/effecton/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking.
+- Type behavior is pinned in `src/effecton/test_types_*.py` through `assert_type` calls plus deliberate `# ty: ignore[rule]` negative assertions; `unused-ignore-comment = "error"` makes them self-checking. Every pin lives inside an underscore-prefixed function that is never called, so importing the module evaluates nothing (module level holds only imports, class definitions, and plain helper functions); decorated definitions and negative subclass pins nest inside those functions too. Prefix never-read annotated locals with an underscore (`_must_be_int: E.Effect[str] = ...`) so ruff's F841 unsafe fix doesn't strip the pin.
 - Every user-facing change (new or changed public API, behavior, or CLI output) must include a changeset. Internal-only changes such as refactors, test tweaks, tooling, or config need none. For now, we do not follow SemVer: default to a patch bump unless the user requests otherwise. Create it with `uv run changeset add --package effecton --bump patch --message "Describe the change"`.
 
 ## Naming and API design
