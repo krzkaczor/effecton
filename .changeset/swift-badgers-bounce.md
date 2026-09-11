@@ -2,4 +2,4 @@
 effecton: patch
 ---
 
-Add the E.Random implicit service with E.random(), a seeded E.Random.Test and the test_random pytest fixture, plus Schedule.jittered; schedule steps are now effects, so build plain custom schedules with Schedule.from_delays
+Add the `E.Random` implicit service: `E.random()` resolves it, its methods keep the `random` module names (`random`, `uniform`, `randint`, `choice`, `shuffle`), `E.Random.Live` is the default, `E.Random.Test(seed)` is deterministic, and the `test_random` pytest fixture provides one seeded with 0
