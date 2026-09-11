@@ -52,6 +52,7 @@ from effecton.std.logger import (
 )
 from effecton.std.pretty_logger import PrettyFormatter, pretty_logger
 from effecton.std.race import race_first
+from effecton.std.schedule import Schedule
 from effecton.std.scope import Scope, acquire_and_release, add_finalizer, scoped
 from effecton.std.timeout import TimeoutException, timeout
 from effecton.suspend import suspend
@@ -79,6 +80,7 @@ __all__ = [
     "MinimumLogLevel",
     "MissingRequirement",
     "PrettyFormatter",
+    "Schedule",
     "Scope",
     "Severity",
     "Succeeded",

@@ -478,11 +478,30 @@ For deterministic tests, provide `E.Clock.Test` around the timeout, fork the pro
 
 More examples: [`test_timeout.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_timeout.py).
 
+### Retries
+
+`effect.retry(schedule, until=...)` re-runs an effect on a typed failure while the schedule recurs, sleeping through the Clock for each delay. Defects and interrupts are never retried. When the schedule is exhausted, or `until` holds for the error, the retry fails with that last error, so the error channel is unchanged.
+
+```python
+fetch_total().retry(E.Schedule.recurs(3))  # Effect[int, FetchError]
+
+fetch_user(1).retry(
+    E.Schedule.exponential(timedelta(seconds=1)),
+    until=lambda e: isinstance(e, NotFound),
+)  # Effect[User, FetchError | NotFound]
+```
+
+`E.Schedule.recurs(times)` recurs up to `times` more times without waiting, `E.Schedule.spaced(delay)` waits `delay` before every attempt, and `E.Schedule.exponential(base, factor=2.0)` waits `base`, then `base * factor`, and so on. The last two are unbounded until schedule combinators land; bound them with `until` for now, or build a custom sequence with `E.Schedule(delays=...)` from any callable that yields a fresh iterator of `timedelta` values. Every run of the retried effect starts its schedule over.
+
+There is no decorator form because `until` is typed by the effect's error channel, which a decorator cannot see. `recurs` needs no waiting and works under `run_sync`; for deterministic tests of delayed schedules, provide `E.Clock.Test`, fork the program, then advance the clock once per gap and await the fiber.
+
+More examples: [`test_retry.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_retry.py).
+
 ## Roadmap
 
 - [x] `ty` support
 - [x] Support for async/sync code
-- [ ] Retries
+- [x] Retries
 - [x] Timeouts
 - [ ] `Random` implicit service
 - [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
