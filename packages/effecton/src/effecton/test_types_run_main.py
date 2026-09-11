@@ -1,3 +1,6 @@
+"""Type-level pins for run_main. Nothing here runs: ty checks the function
+bodies and pytest never calls them."""
+
 from dataclasses import dataclass
 from typing import Literal, Never, assert_type, final
 
@@ -15,7 +18,7 @@ class Db:
     url: str
 
 
-def _run_main_pins() -> None:
+def _run_main_produces_the_value() -> None:
     async def fetch() -> int:
         return 1
 
@@ -24,5 +27,6 @@ def _run_main_pins() -> None:
     assert_type(E.run_main(E.fail(ParseError("x"))), Never)
 
 
-def _unmet_requirement() -> None:
+def _run_main_negative() -> None:
+    # An unmet requirement makes the effect unrunnable.
     E.run_main(E.require(Db))  # ty: ignore[invalid-argument-type]

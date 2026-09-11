@@ -1,3 +1,6 @@
+"""Type-level pins for suspend. Nothing here runs: ty checks the function
+bodies and pytest never calls them."""
+
 from dataclasses import dataclass
 from typing import Literal, Never, assert_type, final
 
@@ -22,46 +25,40 @@ def parse(s: str) -> E.Effect[int, ParseError]:
         return E.fail(ParseError(s))
 
 
-def _one_arg(x: int) -> int:
-    return x
+def _suspend_thunk_defers_an_effect_and_all_three_channels_pass_through() -> None:
+    assert_type(E.suspend(lambda: E.success(1)), E.Effect[Literal[1]])
+    assert_type(E.suspend(lambda: parse("1")), E.Effect[int, ParseError])
+    assert_type(E.suspend(lambda: E.require(Db)), E.Effect[Db, Never, Db])
 
 
-# --- suspend: a thunk defers an effect, all three channels pass through ---
+def _suspend_as_a_decorator_preserves_the_call_signature() -> None:
+    @E.suspend
+    def fetch(user_id: int) -> E.Effect[str, ParseError]:
+        return E.success(str(user_id))
 
-assert_type(E.suspend(lambda: E.success(1)), E.Effect[Literal[1]])
-assert_type(E.suspend(lambda: parse("1")), E.Effect[int, ParseError])
-assert_type(E.suspend(lambda: E.require(Db)), E.Effect[Db, Never, Db])
+    assert_type(fetch(1), E.Effect[str, ParseError])
 
-# --- suspend as a decorator preserves the call signature ---
-
-
-@E.suspend
-def _fetch(user_id: int) -> E.Effect[str, ParseError]:
-    return E.success(str(user_id))
+    # The decorator does not change the parameter types.
+    fetch("x")  # ty: ignore[invalid-argument-type]
 
 
-assert_type(_fetch(1), E.Effect[str, ParseError])
+def _suspend_zero_arg_function_resolves_to_the_thunk_overload() -> None:
+    # The name is the effect.
+    @E.suspend
+    def config() -> E.Effect[int]:
+        return E.success(1)
+
+    assert_type(config, E.Effect[int])
 
 
-# A zero-arg function resolves to the thunk overload; the name is the effect.
+def _suspend_negative() -> None:
+    def one_arg(x: int) -> int:
+        return x
 
+    # The callable must return an Effect.
+    E.suspend(lambda: 1)  # ty: ignore[no-matching-overload]
+    E.suspend(one_arg)  # ty: ignore[no-matching-overload]
 
-@E.suspend
-def _config() -> E.Effect[int]:
-    return E.success(1)
-
-
-assert_type(_config, E.Effect[int])
-
-# --- suspend: negative tests ---
-
-# The callable must return an Effect.
-E.suspend(lambda: 1)  # ty: ignore[no-matching-overload]
-E.suspend(_one_arg)  # ty: ignore[no-matching-overload]
-
-# The decorator does not change the parameter types.
-_fetch("x")  # ty: ignore[invalid-argument-type]
-
-# The value type comes from the thunk, not from the annotation.
-suspended_int = E.suspend(lambda: E.success(1))
-must_be_int_suspended: E.Effect[str] = suspended_int  # ty: ignore[invalid-assignment]
+    # The value type comes from the thunk, not from the annotation.
+    suspended_int = E.suspend(lambda: E.success(1))
+    _must_be_int_suspended: E.Effect[str] = suspended_int  # ty: ignore[invalid-assignment]

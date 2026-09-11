@@ -1,3 +1,6 @@
+"""Type-level pins for the async runners. Nothing here runs: ty checks the
+function bodies and pytest never calls them."""
+
 import asyncio
 from dataclasses import dataclass
 from typing import Literal, Never, assert_type, final
@@ -20,24 +23,23 @@ async def fetch() -> int:
     return 1
 
 
-# --- coroutine: value inferred from the awaitable, error channel stays Never ---
-
-assert_type(E.coroutine(fetch), E.Effect[int])
-assert_type(E.coroutine(lambda: asyncio.sleep(0, "x")), E.Effect[Literal["x"]])
-
-# --- attempt_async: value from the awaitable, error from the mapper ---
-
-assert_type(
-    E.attempt_async(fetch, lambda e: ParseError(str(e))), E.Effect[int, ParseError]
-)
-
-failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
-assert_type(failing, E.Effect[Never, ParseError])
+def _coroutine_value_from_the_awaitable_error_channel_stays_never() -> None:
+    assert_type(E.coroutine(fetch), E.Effect[int])
+    assert_type(E.coroutine(lambda: asyncio.sleep(0, "x")), E.Effect[Literal["x"]])
 
 
-# --- run_async_coroutine produces an Exit matching the effect's channels ---
-# Type-checked only; never called.
-async def _run_async_coroutine_pins() -> None:
+def _attempt_async_value_from_the_awaitable_error_from_the_mapper() -> None:
+    assert_type(
+        E.attempt_async(fetch, lambda e: ParseError(str(e))), E.Effect[int, ParseError]
+    )
+
+    failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
+    assert_type(failing, E.Effect[Never, ParseError])
+
+
+async def _run_async_coroutine_produces_an_exit_matching_the_channels() -> None:
+    failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
+
     assert_type(
         await E.run_async_coroutine(E.coroutine(fetch)), E.Succeeded[int] | E.Failure
     )
@@ -54,9 +56,9 @@ async def _run_async_coroutine_pins() -> None:
     await E.run_async_coroutine(E.require(Db))  # ty: ignore[invalid-argument-type]
 
 
-# --- run_async_exit returns the same Exit; run_async returns the value ---
-# Type-checked only; never called.
-def _run_async_pins() -> None:
+def _run_async_exit_returns_the_same_exit_and_run_async_the_value() -> None:
+    failing = E.coroutine(fetch).flat_map(lambda _: E.fail(ParseError("x")))
+
     assert_type(E.run_async_exit(E.coroutine(fetch)), E.Succeeded[int] | E.Failure)
     assert_type(E.run_async_exit(failing), E.Succeeded[Never] | E.Failure[ParseError])
     assert_type(E.run_async(E.coroutine(fetch)), int)
@@ -67,15 +69,12 @@ def _run_async_pins() -> None:
     E.run_async(E.require(Db))  # ty: ignore[invalid-argument-type]
 
 
-# --- negative tests ---
+def _coroutine_negative() -> None:
+    def not_awaitable() -> int:
+        return 1
 
+    # The thunk must return an awaitable.
+    E.coroutine(not_awaitable)  # ty: ignore[invalid-argument-type]
 
-def _not_awaitable() -> int:
-    return 1
-
-
-# The thunk must return an awaitable.
-E.coroutine(_not_awaitable)  # ty: ignore[invalid-argument-type]
-
-# The thunk takes no arguments.
-E.coroutine(asyncio.sleep)  # ty: ignore[invalid-argument-type]
+    # The thunk takes no arguments.
+    E.coroutine(asyncio.sleep)  # ty: ignore[invalid-argument-type]
