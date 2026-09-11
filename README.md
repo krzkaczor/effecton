@@ -207,9 +207,9 @@ E.run_sync(p)  # "recovered from oops"
 Use `catch` to handle one error type and leave the rest in the error channel. The handler receives the narrowed error, and defects (`Die`) pass through untouched:
 
 ```python
-n = random.randint(1, 4)
+roll = E.random().flat_map(lambda rng: rng.randint(1, 4))
 
-p = E.success(n).flat_map(
+p = roll.flat_map(
     lambda r: E.fail(FatalError()) if r == 2 else E.fail(RecoverableError())
 )  # Effect[Never, FatalError | RecoverableError]
 
@@ -422,6 +422,36 @@ Provide clocks with `.provide(E.Clock.Protocol)(...)`: `provide_implicit` is key
 
 More examples: [`test_clock.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_clock.py).
 
+### Random
+
+`E.random()` resolves the implicit `E.Random` service, so it never enters `R`. Its methods keep the names of the `random` standard library and each returns an effect: `random()`, `uniform(a, b)`, `randint(a, b)`, `choice(seq)` and `shuffle(seq)`, where `shuffle` returns a new list and leaves its input untouched. The default is `E.Random.Live`, which draws from the process-global generator behind the `random` module.
+
+```python
+@E.gen
+def roll() -> E.EffectGen[int]:
+    rng = yield from E.random()
+
+    return (yield from rng.randint(1, 6))
+
+
+E.run_sync(roll())  # 1..6, no setup needed
+```
+
+In tests, provide `E.Random.Test(seed)`: every draw is a function of the seed, and one instance advances as a single sequence, so the same seed always reproduces the same run. A test that requests the `test_random` fixture gets a `Test` seeded with 0 provided to its effect:
+
+```python
+@E.gen
+def test_rolls_are_reproducible(test_random: E.Random.Test) -> E.EffectGen[None]:
+    first = yield from roll()
+    second = yield from roll()
+
+    assert (first, second) == (4, 4)
+```
+
+Provide generators with `.provide(E.Random.Protocol)(...)`, as with the Clock. This repo's ruff config bans the `random` module's drawing functions (`random.random`, `random.randint`, `random.choice`, ...) outside the service module, so all code goes through `E.random()`; building a `random.Random(seed)` to compute expected values in a test is still allowed.
+
+More examples: [`test_random.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_random.py).
+
 ### Fibers
 
 `E.fork(effect)` starts an effect concurrently and returns an `E.Fiber`. `fiber.join()` is the fiber's value, failing with the fiber's own cause; `fiber.wait()` is its `Exit` and never fails; `fiber.poll()` peeks without waiting; `fiber.interrupt()` cancels it, lets its finalizers run and returns the `Exit`; `E.yield_now()` lets other fibers take a turn. Fibers are asyncio tasks underneath, so `fork` is async only and a forked run starts with a fresh environment: provide what it needs.
@@ -491,9 +521,15 @@ fetch_user(1).retry(
 )  # Effect[User, FetchError | NotFound]
 ```
 
-`E.Schedule.recurs(times)` recurs up to `times` more times without waiting, `E.Schedule.spaced(delay)` waits `delay` before every attempt, and `E.Schedule.exponential(base, factor=2.0)` waits `base`, then `base * factor`, and so on. The last two are unbounded until schedule combinators land; bound them with `until` for now, or build a custom sequence with `E.Schedule(delays=...)` from any callable that yields a fresh iterator of `timedelta` values. Every run of the retried effect starts its schedule over.
+`E.Schedule.recurs(times)` recurs up to `times` more times without waiting, `E.Schedule.spaced(delay)` waits `delay` before every attempt, and `E.Schedule.exponential(base, factor=2.0)` waits `base`, then `base * factor`, and so on. The last two are unbounded; bound them with `until`. `schedule.jittered(min=0.8, max=1.2)` scales every delay by a factor drawn uniformly from `[min, max]` through the `E.Random` service, so `E.Random.Test(seed)` makes the jitter reproducible. Every run of the retried effect starts its schedule over.
 
-There is no decorator form because `until` is typed by the effect's error channel, which a decorator cannot see. `recurs` needs no waiting and works under `run_sync`; for deterministic tests of delayed schedules, provide `E.Clock.Test`, fork the program, then advance the clock once per gap and await the fiber.
+```python
+fetch_user(1).retry(E.Schedule.exponential(timedelta(seconds=1)).jittered())
+```
+
+A schedule is a factory of steps, and each step is an effect yielding the next delay, which is what lets `jittered` consult `Random`. Build a custom one with `E.Schedule.from_delays(...)` from any callable that yields a fresh iterator of `timedelta` values, or with `E.Schedule(steps=...)` when the delays are computed by effects.
+
+There is no decorator form because `until` is typed by the effect's error channel, which a decorator cannot see. `recurs` needs no waiting and works under `run_sync`; for deterministic tests of delayed schedules, provide `E.Clock.Test`, fork the program, then advance the clock once per gap and await the fiber. A forked run starts with a fresh environment, so provide the test clock and a seeded `E.Random.Test` inside the forked program.
 
 More examples: [`test_retry.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_retry.py).
 
@@ -503,7 +539,7 @@ More examples: [`test_retry.py`](https://github.com/krzkaczor/effecton/blob/main
 - [x] Support for async/sync code
 - [x] Retries
 - [x] Timeouts
-- [ ] `Random` implicit service
+- [x] `Random` implicit service
 - [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
 
 ## Inspirations

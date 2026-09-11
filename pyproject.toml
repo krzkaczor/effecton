@@ -45,6 +45,8 @@ ignore = ["ANN204"]
 "**/test_*.py" = ["ANN"]
 "packages/effecton/src/effecton/std/clock.py" = ["TID251"]
 "packages/effecton/src/effecton/std/test_clock.py" = ["TID251"]
+"packages/effecton/src/effecton/std/random.py" = ["TID251"]
+"packages/effecton/src/effecton/std/test_random.py" = ["TID251"]
 # yield_now is a scheduling point, not a pause.
 "packages/effecton/src/effecton/std/fiber.py" = ["TID251"]
 # Runner tests use asyncio.sleep(0) as a yield point, not as a pause.
@@ -68,6 +70,15 @@ ignore = ["ANN204"]
 "time.ctime".msg = "Read the time through E.now()."
 "time.sleep".msg = "Sleep through E.sleep()."
 "asyncio.sleep".msg = "Sleep through E.sleep()."
+"random.random".msg = "Draw randomness through E.random()."
+"random.uniform".msg = "Draw randomness through E.random()."
+"random.randint".msg = "Draw randomness through E.random()."
+"random.randrange".msg = "Draw randomness through E.random()."
+"random.choice".msg = "Draw randomness through E.random()."
+"random.choices".msg = "Draw randomness through E.random()."
+"random.sample".msg = "Draw randomness through E.random()."
+"random.shuffle".msg = "Draw randomness through E.random()."
+"random.seed".msg = "Draw randomness through E.random()."
 
 [tool.ruff.lint.isort]
 known-first-party = ["changesets", "effecton", "skills_cli"]

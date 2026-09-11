@@ -22,20 +22,23 @@ def retry[A, E: EffectonError, R](
 ) -> Effect[A, E, R]:
     """Re-run effect on a typed failure while schedule recurs.
 
-    Each attempt after the first waits through the Clock for the
-    schedule's next delay. When the schedule is exhausted, or until holds
-    for the error, the retry fails with that last error. Defects and
-    interrupts are never retried. Every run takes a fresh delay sequence.
+    Each attempt after the first runs the schedule's next step and waits
+    through the Clock for the delay it yields. When the schedule is
+    exhausted, or until holds for the error, the retry fails with that
+    last error. Defects and interrupts are never retried. Every run takes
+    a fresh step sequence, and each step runs inside the retry's
+    environment, so a jittered schedule draws through whatever Random is
+    provided there.
     """
 
-    def attempt(delays: Iterator[timedelta]) -> Effect[A, E, R]:
+    def attempt(steps: Iterator[Effect[timedelta]]) -> Effect[A, E, R]:
         def recover(error: E) -> Effect[A, E, R]:
             if until is not None and until(error):
                 return fail(error)
-            delay = next(delays, None)
-            if delay is None:
+            step = next(steps, None)
+            if step is None:
                 return fail(error)
-            return _sleep(delay).flat_map(lambda _: attempt(delays))
+            return step.flat_map(_sleep).flat_map(lambda _: attempt(steps))
 
         return effect.catch_all(recover)
 

@@ -3,6 +3,7 @@ import textwrap
 import pytest
 
 PLUGIN_TESTS = textwrap.dedent("""
+    import random
     from dataclasses import dataclass
     from datetime import UTC, datetime, timedelta
     from typing import final
@@ -42,6 +43,15 @@ PLUGIN_TESTS = textwrap.dedent("""
         assert now == datetime(1970, 1, 1, 0, 5, tzinfo=UTC)
 
 
+    @E.gen
+    def test_random_is_provided(test_random: E.Random.Test) -> E.EffectGen[None]:
+        rng = yield from E.random()
+
+        draw = yield from rng.random()
+
+        assert draw == random.Random(0).random()
+
+
     def test_plain_test_still_runs():
         assert True
 """)
@@ -52,6 +62,6 @@ def test_effect_tests_are_run_and_reported(pytester: pytest.Pytester):
 
     result = pytester.runpytest("-p", "no:cacheprovider")
 
-    result.assert_outcomes(passed=3, failed=2)
+    result.assert_outcomes(passed=4, failed=2)
     result.stdout.fnmatch_lines(["*test_failing_assertion*", "*assert 1 == 2*"])
     result.stdout.fnmatch_lines(["*test_typed_failure*", "*BoomError*boom*"])

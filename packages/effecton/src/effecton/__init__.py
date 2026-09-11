@@ -29,6 +29,7 @@ from effecton.run_sync import (
     run_sync_exit,
 )
 from effecton.std import clock as Clock
+from effecton.std import random as Random
 from effecton.std.clock import _now as now
 from effecton.std.clock import _sleep as sleep
 from effecton.std.fiber import Fiber, fork, yield_now
@@ -52,6 +53,7 @@ from effecton.std.logger import (
 )
 from effecton.std.pretty_logger import PrettyFormatter, pretty_logger
 from effecton.std.race import race_first
+from effecton.std.random import _random as random
 from effecton.std.schedule import Schedule
 from effecton.std.scope import Scope, acquire_and_release, add_finalizer, scoped
 from effecton.std.timeout import TimeoutException, timeout
@@ -80,6 +82,7 @@ __all__ = [
     "MinimumLogLevel",
     "MissingRequirement",
     "PrettyFormatter",
+    "Random",
     "Schedule",
     "Scope",
     "Severity",
@@ -107,6 +110,7 @@ __all__ = [
     "pretty_logger",
     "provide_implicit",
     "race_first",
+    "random",
     "require",
     "require_implicit",
     "run_async",
