@@ -8,6 +8,7 @@ from typing_extensions import TypeForm
 if TYPE_CHECKING:
     from effecton.catch import CatchBinder
     from effecton.provide import ProvideBinder
+    from effecton.std.schedule import Schedule
     from effecton.std.scope import Scope
     from effecton.std.timeout import TimeoutException
 
@@ -88,6 +89,13 @@ class Effect[A, E: EffectonError = Never, R = Never]:
         from effecton.std.timeout import timeout
 
         return timeout(duration)(self)
+
+    def retry(
+        self, schedule: Schedule, *, until: Callable[[E], bool] | None = None
+    ) -> Effect[A, E, R]:
+        from effecton.std.retry import retry
+
+        return retry(self, schedule, until=until)
 
     def __iter__(self) -> Generator[Effect[A, E, R], Any, A]:
         """Make ``x = yield from effect`` infer ``x`` as A inside @gen.
