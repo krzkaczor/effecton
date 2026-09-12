@@ -6,7 +6,9 @@ effecton is installed. A test that returns an Effect, typically a
 failure raises its cause, so pytest reports a typed error, a defect or
 an interruption like any exception. A test that requests the test_clock
 fixture has that clock provided to its effect, so E.now(), E.sleep()
-and the clock's movers all see the same clock.
+and the clock's movers all see the same clock; likewise test_random
+provides a seeded Random, so every draw through E.random() is
+reproducible.
 """
 
 import inspect
@@ -18,13 +20,19 @@ import pytest
 from effecton.effect import Effect
 from effecton.exit import unwrap
 from effecton.run_async import run_async_exit
-from effecton.std import clock
+from effecton.std import clock, random
 
 
 @pytest.fixture
 def test_clock() -> clock.Test:
     """A Test clock at the Unix epoch, provided to the test's effect."""
     return clock.Test()
+
+
+@pytest.fixture
+def test_random() -> random.Test:
+    """A Random seeded with 0, provided to the test's effect."""
+    return random.Test()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -42,6 +50,9 @@ def pytest_pyfunc_call(pyfuncitem: pytest.Function) -> bool | None:
         if "test_clock" in arguments:
             provided = cast("clock.Test", arguments["test_clock"])
             effect = effect.provide(clock.Protocol)(provided)
+        if "test_random" in arguments:
+            seeded = cast("random.Test", arguments["test_random"])
+            effect = effect.provide(random.Protocol)(seeded)
         unwrap(run_async_exit(effect))
     elif result is not None:
         warnings.warn(

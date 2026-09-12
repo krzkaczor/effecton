@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import final
@@ -221,3 +222,69 @@ def test_a_timeout_interrupts_a_sleeping_retry(
 
     assert result == E.Failure(E.Fail(E.TimeoutException(ONE_SECOND)))
     assert flaky.attempts == 1
+
+
+@E.gen
+def test_jittered_sleeps_the_scaled_delay(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    flaky = Flaky(succeed_on=2)
+    program = (
+        flaky.run()
+        .retry(E.Schedule.spaced(FIVE_SECONDS).jittered())
+        .provide(E.Clock.Protocol)(test_clock)
+        .provide(E.Random.Protocol)(E.Random.Test(seed=0))
+    )
+    expected = FIVE_SECONDS * random.Random(0).uniform(0.8, 1.2)
+    fiber = yield from E.fork(program)
+
+    yield from test_clock.adjust(expected - timedelta(microseconds=1))
+    parked = yield from fiber.poll()
+    attempts_before = flaky.attempts
+    yield from test_clock.adjust(timedelta(microseconds=1))
+    result = yield from fiber.wait()
+
+    assert expected != FIVE_SECONDS
+    assert parked is None
+    assert attempts_before == 1
+    assert result == E.Succeeded("ok")
+    assert flaky.attempts == 2
+
+
+@E.gen
+def test_jittered_draws_a_fresh_factor_per_attempt(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    flaky = Flaky(succeed_on=3)
+    program = (
+        flaky.run()
+        .retry(E.Schedule.spaced(FIVE_SECONDS).jittered())
+        .provide(E.Clock.Protocol)(test_clock)
+        .provide(E.Random.Protocol)(E.Random.Test(seed=0))
+    )
+    stdlib = random.Random(0)
+    gaps = [FIVE_SECONDS * stdlib.uniform(0.8, 1.2) for _ in range(2)]
+    fiber = yield from E.fork(program)
+
+    attempts: list[int] = []
+    for gap in gaps:
+        yield from test_clock.adjust(gap)
+        attempts.append(flaky.attempts)
+    result = yield from fiber.wait()
+
+    assert gaps[0] != gaps[1]
+    assert attempts == [2, 3]
+    assert result == E.Succeeded("ok")
+
+
+def test_retrying_many_jittered_steps_is_stack_safe():
+    flaky = Flaky(succeed_on=None)
+    program = (
+        flaky.run()
+        .retry(E.Schedule.recurs(10_000).jittered())
+        .provide(E.Random.Protocol)(E.Random.Test())
+    )
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(10_001)))

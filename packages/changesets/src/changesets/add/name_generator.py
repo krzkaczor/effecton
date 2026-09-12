@@ -1,6 +1,9 @@
-"""Name-generator service: random adjective-noun-verb slugs, like changesets."""
+"""Name-generator service: random adjective-noun-verb slugs, like changesets.
 
-import random
+Live draws through the implicit E.Random service, so providing
+E.Random.Test(seed) makes the generated names reproducible.
+"""
+
 import typing
 from dataclasses import dataclass, field
 from typing import runtime_checkable
@@ -59,16 +62,14 @@ class Protocol(typing.Protocol):
 
 
 class Live(Protocol):
-    def generate(self) -> E.Effect[str]:
-        def go() -> str:
-            parts = (
-                random.choice(ADJECTIVES),
-                random.choice(NOUNS),
-                random.choice(VERBS),
-            )
-            return "-".join(parts)
+    @E.gen
+    def generate(self) -> E.EffectGen[str]:
+        rng = yield from E.random()
 
-        return E.sync(go)
+        adjective = yield from rng.choice(ADJECTIVES)
+        noun = yield from rng.choice(NOUNS)
+        verb = yield from rng.choice(VERBS)
+        return f"{adjective}-{noun}-{verb}"
 
 
 @dataclass
