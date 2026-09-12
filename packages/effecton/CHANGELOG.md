@@ -1,5 +1,13 @@
 # effecton
 
+## 0.2.2
+
+### Patch Changes
+
+- Add `effect.retry(schedule, until=...)` with `E.Schedule.recurs`, `E.Schedule.spaced`, and `E.Schedule.exponential` ([#19](https://github.com/krzkaczor/effecton/pull/19))
+- Add `schedule.jittered(min=0.8, max=1.2)`, which scales every delay by a factor drawn through `E.random()`; schedule steps are now effects, so build a plain custom schedule with `E.Schedule.from_delays(...)` and an effectful one with `E.Schedule(steps=...)` ([#22](https://github.com/krzkaczor/effecton/pull/22))
+- Add the `E.Random` implicit service: `E.random()` resolves it, its methods keep the `random` module names (`random`, `uniform`, `randint`, `choice`, `shuffle`), `E.Random.Live` is the default, `E.Random.Test(seed)` is deterministic, and the `test_random` pytest fixture provides one seeded with 0 ([#22](https://github.com/krzkaczor/effecton/pull/22))
+
 ## 0.2.1
 
 ### Patch Changes
