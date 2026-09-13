@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import effecton as E
 from changesets.shared import changeset
 from changesets.shared.changeset import Changeset, InvalidBumpLevel, MalformedChangeset
 from changesets.shared.config import UnknownPackage
 
-PATH = Path("/repo/.changeset/happy-pandas-dance.md")
+PATH = E.Path("/repo/.changeset/happy-pandas-dance.md")
 KNOWN = ("effecton",)
 
 

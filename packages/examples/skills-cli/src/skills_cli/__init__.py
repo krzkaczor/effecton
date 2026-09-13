@@ -2,12 +2,12 @@
 
 Services follow the module-as-namespace pattern: each service module
 exports a Protocol plus Live and Test implementations, and consumers
-alias the module — ``from skills_cli import file_system as FileSystem``,
-then ``FileSystem.Protocol`` / ``FileSystem.Live`` / ``FileSystem.Test``.
+alias the module — ``from skills_cli import http_client as HttpClient``,
+then ``HttpClient.Protocol`` / ``HttpClient.Live`` / ``HttpClient.Test``.
+Files are reached through the E.FileSystem service that effecton ships.
 """
 
 from skills_cli import (
-    file_system,
     http_client,
     parse_url,
     program,
@@ -16,7 +16,6 @@ from skills_cli import (
 )
 
 __all__ = [
-    "file_system",
     "http_client",
     "parse_url",
     "program",

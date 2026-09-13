@@ -8,7 +8,6 @@ which one is the project version.
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import final
 
 import effecton as E
@@ -19,7 +18,7 @@ _VERSION_LINE = re.compile(r'^version = "(?P<version>[^"]*)"$', re.MULTILINE)
 @final
 @dataclass(frozen=True)
 class MissingVersionLine(E.EffectonError):
-    path: Path
+    path: E.Path
 
     def __str__(self) -> str:
         return f'No version = "..." line found in {self.path}'
@@ -28,7 +27,7 @@ class MissingVersionLine(E.EffectonError):
 @final
 @dataclass(frozen=True)
 class AmbiguousVersionLine(E.EffectonError):
-    path: Path
+    path: E.Path
 
     def __str__(self) -> str:
         return f'More than one version = "..." line found in {self.path}'
@@ -37,12 +36,12 @@ class AmbiguousVersionLine(E.EffectonError):
 type VersionLineError = MissingVersionLine | AmbiguousVersionLine
 
 
-def read_version(path: Path, text: str) -> E.Effect[str, VersionLineError]:
+def read_version(path: E.Path, text: str) -> E.Effect[str, VersionLineError]:
     return _match_version_line(path, text).map(lambda m: m.group("version"))
 
 
 def replace_version(
-    path: Path, text: str, new_version: str
+    path: E.Path, text: str, new_version: str
 ) -> E.Effect[str, VersionLineError]:
     def splice(matched: re.Match[str]) -> str:
         line = f'version = "{new_version}"'
@@ -52,7 +51,7 @@ def replace_version(
 
 
 def _match_version_line(
-    path: Path, text: str
+    path: E.Path, text: str
 ) -> E.Effect[re.Match[str], VersionLineError]:
     matches = list(_VERSION_LINE.finditer(text))
     if not matches:

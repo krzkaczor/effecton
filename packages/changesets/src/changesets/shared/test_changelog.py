@@ -1,5 +1,4 @@
-from pathlib import Path
-
+import effecton as E
 from changesets.shared import changelog
 from changesets.shared.changeset import Changeset
 from changesets.shared.github import PullRequest
@@ -11,7 +10,7 @@ REPOSITORY = "krzkaczor/effecton"
 
 def cs(name, bumps, summary):
     return Changeset(
-        path=Path(f"/repo/.changeset/{name}.md"), bumps=bumps, summary=summary
+        path=E.Path(f"/repo/.changeset/{name}.md"), bumps=bumps, summary=summary
     )
 
 

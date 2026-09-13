@@ -8,7 +8,6 @@ from the machine stays a defect.
 import subprocess
 import typing
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import final, runtime_checkable
 
 import effecton as E
@@ -29,7 +28,7 @@ type GitError = GitCommandFailed
 
 @runtime_checkable
 class Protocol(typing.Protocol):
-    def added_in(self, path: Path) -> E.Effect[str | None, GitCommandFailed]:
+    def added_in(self, path: E.Path) -> E.Effect[str | None, GitCommandFailed]:
         """Subject of the first-parent commit that added `path`, if any."""
         ...
 
@@ -38,9 +37,9 @@ class Protocol(typing.Protocol):
 
 @dataclass(frozen=True)
 class Live(Protocol):
-    cwd: Path
+    cwd: E.Path
 
-    def added_in(self, path: Path) -> E.Effect[str | None, GitCommandFailed]:
+    def added_in(self, path: E.Path) -> E.Effect[str | None, GitCommandFailed]:
         # --first-parent follows main-branch history only, so the adding
         # commit is the squash or merge commit that landed the PR, whose
         # subject carries the PR number.
@@ -62,10 +61,10 @@ class Live(Protocol):
 
 @dataclass
 class Test(Protocol):
-    subjects: dict[Path, str] = field(default_factory=dict)
+    subjects: dict[E.Path, str] = field(default_factory=dict)
     remotes: dict[str, str] = field(default_factory=dict)
 
-    def added_in(self, path: Path) -> E.Effect[str | None]:
+    def added_in(self, path: E.Path) -> E.Effect[str | None]:
         return E.sync(lambda: self.subjects.get(path))
 
     @E.suspend
@@ -78,10 +77,10 @@ class Test(Protocol):
         return E.success(self.remotes[name])
 
 
-def _run(cwd: Path, args: tuple[str, ...]) -> E.Effect[str, GitCommandFailed]:
+def _run(cwd: E.Path, args: tuple[str, ...]) -> E.Effect[str, GitCommandFailed]:
     def go() -> str:
         completed = subprocess.run(
-            ("git", *args), cwd=cwd, capture_output=True, text=True, check=True
+            ("git", *args), cwd=str(cwd), capture_output=True, text=True, check=True
         )
         return completed.stdout
 

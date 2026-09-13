@@ -12,7 +12,6 @@ bump levels, and a body describing the change:
 
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from typing import final
 
 import frontmatter
@@ -26,7 +25,7 @@ from changesets.shared.semver import Bump
 @final
 @dataclass(frozen=True)
 class MalformedChangeset(E.EffectonError):
-    path: Path
+    path: E.Path
     reason: str
 
     def __str__(self) -> str:
@@ -36,7 +35,7 @@ class MalformedChangeset(E.EffectonError):
 @final
 @dataclass(frozen=True)
 class InvalidBumpLevel(E.EffectonError):
-    path: Path
+    path: E.Path
     value: str
 
     def __str__(self) -> str:
@@ -51,13 +50,13 @@ type ChangesetError = MalformedChangeset | UnknownPackage | InvalidBumpLevel
 
 @dataclass(frozen=True)
 class Changeset:
-    path: Path
+    path: E.Path
     bumps: Mapping[str, Bump]
     summary: str
 
 
 def parse(
-    path: Path, text: str, known_packages: Collection[str]
+    path: E.Path, text: str, known_packages: Collection[str]
 ) -> E.Effect[Changeset, ChangesetError]:
     def load() -> frontmatter.Post:
         return frontmatter.loads(text)

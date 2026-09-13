@@ -1,21 +1,21 @@
 """The `changeset version` command."""
 
-from pathlib import Path
-
 import typer
 
 import effecton as E
-from changesets.shared import file_system as FileSystem
 from changesets.shared import git as Git
+from changesets.shared import repo
 from changesets.version.program import apply_versions
 
 
 def version() -> None:
     """Apply pending changesets: bump versions and update changelogs."""
     releases = E.run_main(
-        apply_versions(Path.cwd())
-        .provide(FileSystem.Protocol)(FileSystem.Live())
-        .provide(Git.Protocol)(Git.Live(cwd=Path.cwd()))
+        repo.from_cwd(
+            lambda cwd: apply_versions(cwd).provide(Git.Protocol)(Git.Live(cwd=cwd))
+        )
+        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .provide(E.Process.Protocol)(E.Process.Live())
     )
     if not releases:
         typer.echo("No unreleased changesets found.")

@@ -1,24 +1,25 @@
 import logging
-from pathlib import Path
 
 import typer
 from typer.testing import CliRunner
 
+import effecton as E
 from skills_cli import cli
-from skills_cli import file_system as FileSystem
 from skills_cli import http_client as HttpClient
 from skills_cli import terminal as Terminal
 
 
 def test_install_success(monkeypatch):
-    fs = FileSystem.Test()
+    home = E.Path("/home/me")
+    fs = E.FileSystem.Test()
     body = "---\ndisable-model-invocation: true\n---\n\nbody"
     http = HttpClient.Test(
         responses={
             "https://raw.githubusercontent.com/octo/my-skill/main/SKILL.md": body
         }
     )
-    monkeypatch.setattr(FileSystem, "Live", lambda: fs)
+    monkeypatch.setattr(E.FileSystem, "AsyncLive", lambda: fs)
+    monkeypatch.setattr(E.Process, "Live", lambda: E.Process.Test(home_directory=home))
     monkeypatch.setattr(HttpClient, "Live", lambda: http)
     monkeypatch.setattr(Terminal, "Live", Terminal.Test)
     app = typer.Typer()
@@ -30,7 +31,7 @@ def test_install_success(monkeypatch):
 
     assert result.exit_code == 0
     assert result.stdout == "Skill my-skill installed.\n"
-    assert (Path.home() / ".agents/skills/my-skill/SKILL.md") in fs.files
+    assert home / ".agents/skills/my-skill/SKILL.md" in fs.files
 
 
 def test_install_failure(caplog):

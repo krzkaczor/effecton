@@ -452,6 +452,67 @@ Provide generators with `.provide(E.Random.Protocol)(...)`, as with the Clock. T
 
 More examples: [`test_random.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_random.py).
 
+### FileSystem
+
+`E.FileSystem` reads and writes the disk. It is an explicit requirement: a program that needs it says so in `R` through `E.require(E.FileSystem.Protocol)`, and forgetting to provide an implementation is a type error rather than a surprise write to the real disk. Its methods follow the names of Effect-TS's FileSystem and each returns an effect with a precise error union: `exists`, `stat`, `read_file`, `read_file_string`, `write_file`, `write_file_string`, `make_directory(path, recursive=...)`, `read_directory`, `remove(path, recursive=...)`, `rename`, `copy_file`, `symlink(target, link)` and `read_link`. The working and home directories are not file I/O and live on `E.Process`. Errors are cause-specific (`FileNotFound`, `PermissionDenied`, `PathIsADirectory`, `PathIsNotADirectory`, `PathAlreadyExists`, `DirectoryNotEmpty`), so `catch(E.FileSystem.FileNotFound)` handles exactly the missing-file case; anything else the disk can do, such as running out of space, stays a defect.
+
+```python
+@E.gen
+def read_config(
+    root: E.Path,
+) -> E.EffectGen[str, E.FileSystem.ReadError, E.FileSystem.Protocol]:
+    fs = yield from E.require(E.FileSystem.Protocol)
+
+    return (yield from fs.read_file_string(root / "config.toml"))
+
+
+program = read_config(E.Path("/repo"))
+E.run_sync(program.provide(E.FileSystem.Protocol)(E.FileSystem.SyncLive()))
+```
+
+There are two live implementations, one per runner, like the Clock: `E.FileSystem.SyncLive` blocks the thread on the `os` calls and suits `run_sync`; `E.FileSystem.AsyncLive` makes the same calls through [aiofiles](https://github.com/Tinche/aiofiles), so the loop keeps turning under `run_async` and `run_main`. aiofiles is an optional extra, `pip install 'effecton[aiofiles]'`; effecton itself still has no required dependencies.
+
+In tests, provide `E.FileSystem.Test`, an in-memory tree seeded with `files` (text or bytes), `directories` and `links`; every ancestor of a seeded path is created for you. It enforces the same rules as the disk, so a program gets the same `Exit` against `Test` as against a live implementation, and its state stays inspectable afterwards:
+
+```python
+def test_reads_the_config():
+    fs = E.FileSystem.Test(files={E.Path("/repo/config.toml"): "[packages]\n"})
+
+    result = E.run_sync(read_config(E.Path("/repo")).provide(E.FileSystem.Protocol)(fs))
+
+    assert result == "[packages]\n"
+```
+
+More examples: [`test_file_system.py`](https://github.com/krzkaczor/effecton/blob/main/packages/effecton/src/effecton/std/test_file_system.py).
+
+### Path
+
+`E.Path` is the only path type effecton code touches: an immutable value that joins with `/`, compares, hashes and sorts, and exposes `parent`, `parents`, `name`, `suffix`, `stem` and `parts`. Unlike `pathlib.Path` it has no I/O methods, so a path can never reach the disk on its own; every read and write goes through `E.FileSystem`. Joining follows the standard library's rules: an absolute right-hand side replaces the left, and redundant separators collapse.
+
+```python
+config = E.Path("/repo") / ".changeset" / "config.toml"
+config.parent  # Path('/repo/.changeset')
+config.suffix  # '.toml'
+```
+
+This repo's ruff config bans `pathlib`, `os.path`, `shutil`, `tempfile` and the `os` file functions outside the FileSystem and Process modules, so all code goes through `E.FileSystem`, `E.Process` and `E.Path`.
+
+### Process
+
+`E.Process` is what the running process knows about its environment: `cwd()` and `home()` today, with environment variables to follow. Both return an `E.Path`. It is an explicit requirement like the FileSystem, so a CLI reads its starting directory through it and a test pins that directory with `E.Process.Test(current_directory=..., home_directory=...)` instead of depending on where pytest happens to run.
+
+```python
+def from_cwd(program):
+    return E.require(E.Process.Protocol).flat_map(lambda p: p.cwd()).flat_map(program)
+
+
+E.run_main(
+    from_cwd(status)
+    .provide(E.Process.Protocol)(E.Process.Live())
+    .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+)
+```
+
 ### Fibers
 
 `E.fork(effect)` starts an effect concurrently and returns an `E.Fiber`. `fiber.join()` is the fiber's value, failing with the fiber's own cause; `fiber.wait()` is its `Exit` and never fails; `fiber.poll()` peeks without waiting; `fiber.interrupt()` cancels it, lets its finalizers run and returns the `Exit`; `E.yield_now()` lets other fibers take a turn. Fibers are asyncio tasks underneath, so `fork` is async only and a forked run starts with a fresh environment: provide what it needs.
@@ -540,6 +601,7 @@ More examples: [`test_retry.py`](https://github.com/krzkaczor/effecton/blob/main
 - [x] Retries
 - [x] Timeouts
 - [x] `Random` implicit service
+- [x] `FileSystem` service and `Path`
 - [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
 
 ## Inspirations

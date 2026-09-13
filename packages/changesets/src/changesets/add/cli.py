@@ -1,6 +1,5 @@
 """The `changeset add` command."""
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -8,7 +7,7 @@ import typer
 import effecton as E
 from changesets.add import name_generator as NameGenerator
 from changesets.add.program import add_changeset
-from changesets.shared import file_system as FileSystem
+from changesets.shared import repo
 from changesets.shared.semver import Bump
 
 
@@ -33,8 +32,9 @@ def add(
         raise typer.Exit(code=2)
 
     path = E.run_main(
-        add_changeset(Path.cwd(), package, level, message)
-        .provide(FileSystem.Protocol)(FileSystem.Live())
+        repo.from_cwd(lambda cwd: add_changeset(cwd, package, level, message))
+        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .provide(E.Process.Protocol)(E.Process.Live())
         .provide(NameGenerator.Protocol)(NameGenerator.Live())
     )
     typer.echo(f"Created {path}")

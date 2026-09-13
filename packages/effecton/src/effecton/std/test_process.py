@@ -1,0 +1,49 @@
+import os
+
+import effecton as E
+
+
+def test_live_reads_the_working_and_home_directories():
+    process = E.Process.Live()
+
+    cwd = E.run_sync(process.cwd())
+    home = E.run_sync(process.home())
+
+    assert cwd == E.Path(os.getcwd())
+    assert home == E.Path(os.path.expanduser("~"))
+
+
+def test_live_runs_under_the_async_runner_too():
+    result = E.run_async(E.Process.Live().cwd())
+
+    assert result == E.Path(os.getcwd())
+
+
+def test_test_returns_the_configured_directories():
+    process = E.Process.Test(
+        current_directory=E.Path("/repo"), home_directory=E.Path("/home/me")
+    )
+
+    cwd = E.run_sync(process.cwd())
+    home = E.run_sync(process.home())
+
+    assert (cwd, home) == (E.Path("/repo"), E.Path("/home/me"))
+
+
+def test_test_defaults_both_directories_to_the_root():
+    process = E.Process.Test()
+
+    assert E.run_sync(process.cwd()) == E.Path("/")
+    assert E.run_sync(process.home()) == E.Path("/")
+
+
+def test_provided_as_a_requirement():
+    program = E.require(E.Process.Protocol).flat_map(lambda p: p.cwd())
+
+    result = E.run_sync(
+        program.provide(E.Process.Protocol)(
+            E.Process.Test(current_directory=E.Path("/repo"))
+        )
+    )
+
+    assert result == E.Path("/repo")

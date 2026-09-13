@@ -1,28 +1,25 @@
 """The add flow: write a new changeset file under a generated name."""
 
-from pathlib import Path
-
 import effecton as E
 from changesets.add import name_generator as NameGenerator
 from changesets.shared import changeset, config, repo
-from changesets.shared import file_system as FileSystem
 from changesets.shared.semver import Bump
 
-type AddServices = FileSystem.Protocol | NameGenerator.Protocol
+type AddServices = E.FileSystem.Protocol | NameGenerator.Protocol
 
 type AddError = (
     repo.NotAChangesetRepo
     | config.ConfigError
     | config.UnknownPackage
-    | FileSystem.FileSystemError
+    | E.FileSystem.FileSystemError
 )
 
 
 @E.gen
 def add_changeset(
-    start: Path, package: str, level: Bump, summary: str
-) -> E.EffectGen[Path, AddError, AddServices]:
-    fs = yield from E.require(FileSystem.Protocol)
+    start: E.Path, package: str, level: Bump, summary: str
+) -> E.EffectGen[E.Path, AddError, AddServices]:
+    fs = yield from E.require(E.FileSystem.Protocol)
 
     root = yield from repo.find_root(start)
     cfg = yield from repo.load_config(root)
@@ -36,15 +33,15 @@ def add_changeset(
     name = yield from pick_name(directory)
     path = directory / f"{name}.md"
     content = changeset.serialize({package: level}, summary.strip())
-    yield from fs.write_text(path, content)
+    yield from fs.write_file_string(path, content)
     return path
 
 
 @E.gen
 def pick_name(
-    directory: Path,
-) -> E.EffectGen[str, FileSystem.PermissionDenied, AddServices]:
-    fs = yield from E.require(FileSystem.Protocol)
+    directory: E.Path,
+) -> E.EffectGen[str, E.FileSystem.PermissionDenied, AddServices]:
+    fs = yield from E.require(E.FileSystem.Protocol)
     name_generator = yield from E.require(NameGenerator.Protocol)
 
     for _ in range(5):

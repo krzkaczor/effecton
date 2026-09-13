@@ -1,12 +1,9 @@
-from pathlib import Path
-
 import effecton as E
 from changesets.add import name_generator as NameGenerator
 from changesets.add.program import add_changeset, pick_name
-from changesets.shared import file_system as FileSystem
 from changesets.shared.config import UnknownPackage
 
-ROOT = Path("/repo")
+ROOT = E.Path("/repo")
 CS_DIR = ROOT / ".changeset"
 CONFIG = CS_DIR / "config.toml"
 CONFIG_TEXT = '[packages]\neffecton = "packages/effecton"\n'
@@ -14,7 +11,7 @@ CONFIG_TEXT = '[packages]\neffecton = "packages/effecton"\n'
 
 def make_fs(extra_files=None):
     files = {CONFIG: CONFIG_TEXT, **(extra_files or {})}
-    return FileSystem.Test(files=files, dirs={CS_DIR})
+    return E.FileSystem.Test(files=files)
 
 
 def wire_add(
@@ -22,7 +19,7 @@ def wire_add(
 ):
     return (
         add_changeset(ROOT, package, bump, summary)
-        .provide(FileSystem.Protocol)(fs)
+        .provide(E.FileSystem.Protocol)(fs)
         .provide(NameGenerator.Protocol)(name_generator)
     )
 
@@ -30,7 +27,7 @@ def wire_add(
 def wire_pick_name(fs, name_generator):
     return (
         pick_name(CS_DIR)
-        .provide(FileSystem.Protocol)(fs)
+        .provide(E.FileSystem.Protocol)(fs)
         .provide(NameGenerator.Protocol)(name_generator)
     )
 

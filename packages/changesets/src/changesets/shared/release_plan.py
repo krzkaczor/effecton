@@ -1,10 +1,8 @@
 """Compute the releases a set of pending changesets produces."""
 
 from dataclasses import dataclass
-from pathlib import Path
 
 import effecton as E
-from changesets.shared import file_system as FileSystem
 from changesets.shared import pyproject_version, semver
 from changesets.shared.changeset import Changeset
 from changesets.shared.config import Config
@@ -20,15 +18,15 @@ class Release:
 
 @E.gen
 def plan_releases(
-    root: Path, cfg: Config, changesets: tuple[Changeset, ...]
+    root: E.Path, cfg: Config, changesets: tuple[Changeset, ...]
 ) -> E.EffectGen[
     tuple[Release, ...],
     semver.InvalidVersion
     | pyproject_version.VersionLineError
-    | FileSystem.FileSystemError,
-    FileSystem.Protocol,
+    | E.FileSystem.FileSystemError,
+    E.FileSystem.Protocol,
 ]:
-    fs = yield from E.require(FileSystem.Protocol)
+    fs = yield from E.require(E.FileSystem.Protocol)
 
     releases: list[Release] = []
     for package in sorted(cfg.packages):
@@ -36,7 +34,7 @@ def plan_releases(
         if not levels:
             continue
         pyproject_path = root / cfg.packages[package] / "pyproject.toml"
-        text = yield from fs.read_text(pyproject_path)
+        text = yield from fs.read_file_string(pyproject_path)
         current_text = yield from pyproject_version.read_version(pyproject_path, text)
         current = yield from semver.parse(package, current_text)
         new = semver.bump(current, semver.max_bump(levels))

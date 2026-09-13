@@ -1,7 +1,5 @@
 """The version flow: apply pending changesets to versions and changelogs."""
 
-from pathlib import Path
-
 import effecton as E
 from changesets.shared import (
     changelog,
@@ -12,7 +10,6 @@ from changesets.shared import (
     repo,
     semver,
 )
-from changesets.shared import file_system as FileSystem
 from changesets.shared import git as Git
 from changesets.shared.release_plan import Release, plan_releases
 
@@ -22,7 +19,7 @@ type ApplyError = (
     | changeset.ChangesetError
     | semver.InvalidVersion
     | pyproject_version.VersionLineError
-    | FileSystem.FileSystemError
+    | E.FileSystem.FileSystemError
     | Git.GitError
     | github.NotAGitHubRemote
 )
@@ -30,9 +27,9 @@ type ApplyError = (
 
 @E.gen
 def apply_versions(
-    start: Path,
-) -> E.EffectGen[tuple[Release, ...], ApplyError, FileSystem.Protocol | Git.Protocol]:
-    fs = yield from E.require(FileSystem.Protocol)
+    start: E.Path,
+) -> E.EffectGen[tuple[Release, ...], ApplyError, E.FileSystem.Protocol | Git.Protocol]:
+    fs = yield from E.require(E.FileSystem.Protocol)
     git = yield from E.require(Git.Protocol)
 
     root = yield from repo.find_root(start)
@@ -45,7 +42,7 @@ def apply_versions(
     # deleted, since git history is queried by path.
     remote = yield from git.remote_url("origin")
     repository = yield from github.parse_repository(remote)
-    pull_requests: dict[Path, github.PullRequest] = {}
+    pull_requests: dict[E.Path, github.PullRequest] = {}
     for c in changesets:
         subject = yield from git.added_in(c.path)
         number = github.pull_request_number(subject) if subject else None
@@ -56,24 +53,24 @@ def apply_versions(
     for release in releases:
         package_dir = root / cfg.packages[release.package]
         pyproject_path = package_dir / "pyproject.toml"
-        text = yield from fs.read_text(pyproject_path)
+        text = yield from fs.read_file_string(pyproject_path)
         updated = yield from pyproject_version.replace_version(
             pyproject_path, text, str(release.new)
         )
-        yield from fs.write_text(pyproject_path, updated)
+        yield from fs.write_file_string(pyproject_path, updated)
 
         section = changelog.render_section(
             release.package, release.new, changesets, pull_requests
         )
         changelog_path = package_dir / "CHANGELOG.md"
-        existing = yield from fs.read_text(changelog_path).catch(
-            FileSystem.FileNotFound
+        existing = yield from fs.read_file_string(changelog_path).catch(
+            E.FileSystem.FileNotFound
         )(lambda _: E.success(None))
-        yield from fs.write_text(
+        yield from fs.write_file_string(
             changelog_path, changelog.prepend(release.package, existing, section)
         )
         yield from E.log_info("Bumped:", release.package, str(release.new))
 
     for c in changesets:
-        yield from fs.delete(c.path)
+        yield from fs.remove(c.path)
     return releases

@@ -1,11 +1,8 @@
-from pathlib import Path
-
 import effecton as E
-from changesets.shared import file_system as FileSystem
 from changesets.shared.repo import NotAChangesetRepo
 from changesets.status.program import status
 
-ROOT = Path("/repo")
+ROOT = E.Path("/repo")
 CS_DIR = ROOT / ".changeset"
 CONFIG = CS_DIR / "config.toml"
 CONFIG_TEXT = '[packages]\neffecton = "packages/effecton"\n'
@@ -15,11 +12,11 @@ PYPROJECT_TEXT = '[project]\nname = "effecton"\nversion = "0.1.0"\n'
 
 def make_fs(extra_files=None):
     files = {CONFIG: CONFIG_TEXT, PYPROJECT: PYPROJECT_TEXT, **(extra_files or {})}
-    return FileSystem.Test(files=files, dirs={CS_DIR})
+    return E.FileSystem.Test(files=files)
 
 
 def test_reports_no_pending_changesets():
-    program = status(ROOT).provide(FileSystem.Protocol)(make_fs())
+    program = status(ROOT).provide(E.FileSystem.Protocol)(make_fs())
 
     result = E.run_sync_exit(program)
 
@@ -33,7 +30,7 @@ def test_reports_planned_releases_and_changesets():
             CS_DIR / "two.md": "---\neffecton: patch\n---\n\nFix a bug.\n",
         }
     )
-    program = status(ROOT).provide(FileSystem.Protocol)(fs)
+    program = status(ROOT).provide(E.FileSystem.Protocol)(fs)
 
     result = E.run_sync_exit(program)
 
@@ -52,8 +49,8 @@ def test_reports_planned_releases_and_changesets():
 
 
 def test_fails_outside_a_changeset_repo():
-    fs = FileSystem.Test()
-    program = status(ROOT).provide(FileSystem.Protocol)(fs)
+    fs = E.FileSystem.Test()
+    program = status(ROOT).provide(E.FileSystem.Protocol)(fs)
 
     result = E.run_sync_exit(program)
 
@@ -62,7 +59,7 @@ def test_fails_outside_a_changeset_repo():
 
 def test_finds_the_root_from_a_subdirectory():
     fs = make_fs()
-    program = status(ROOT / "packages/effecton").provide(FileSystem.Protocol)(fs)
+    program = status(ROOT / "packages/effecton").provide(E.FileSystem.Protocol)(fs)
 
     result = E.run_sync_exit(program)
 

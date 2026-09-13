@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Changeset-based changelog and version management for this monorepo, built on effecton"
 requires-python = ">=3.14"
 dependencies = [
-    "effecton",
+    "effecton[aiofiles]",
     "python-frontmatter>=1.1",
     "typer>=0.15",
 ]

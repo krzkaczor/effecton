@@ -1,11 +1,8 @@
-from pathlib import Path
-
 import effecton as E
 from changesets.notes.program import NoReleasedVersion, latest_notes
-from changesets.shared import file_system as FileSystem
 from changesets.shared.config import UnknownPackage
 
-ROOT = Path("/repo")
+ROOT = E.Path("/repo")
 CS_DIR = ROOT / ".changeset"
 CONFIG = CS_DIR / "config.toml"
 CONFIG_TEXT = '[packages]\neffecton = "packages/effecton"\n'
@@ -14,11 +11,11 @@ CHANGELOG = ROOT / "packages/effecton/CHANGELOG.md"
 
 def make_fs(extra_files=None):
     files = {CONFIG: CONFIG_TEXT, **(extra_files or {})}
-    return FileSystem.Test(files=files, dirs={CS_DIR})
+    return E.FileSystem.Test(files=files)
 
 
 def wire(fs, package="effecton"):
-    return latest_notes(ROOT, package).provide(FileSystem.Protocol)(fs)
+    return latest_notes(ROOT, package).provide(E.FileSystem.Protocol)(fs)
 
 
 def test_returns_the_latest_changelog_section():

@@ -17,11 +17,17 @@ dependencies = [
     "typing-extensions>=4.16.0",
 ]
 
+[project.optional-dependencies]
+aiofiles = ["aiofiles>=25.1"]
+
 [project.urls]
 Repository = "https://github.com/krzkaczor/effecton"
 
 [project.entry-points.pytest11]
 effecton = "effecton.pytest_plugin"
+
+[dependency-groups]
+dev = ["aiofiles>=25.1", "types-aiofiles>=25.1"]
 
 [build-system]
 requires = ["hatchling"]

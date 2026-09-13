@@ -1,13 +1,12 @@
 """The `changeset notes` command."""
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
 
 import effecton as E
 from changesets.notes.program import latest_notes
-from changesets.shared import file_system as FileSystem
+from changesets.shared import repo
 
 
 def notes(
@@ -15,8 +14,8 @@ def notes(
 ) -> None:
     """Print the latest released CHANGELOG section for a package."""
     section = E.run_main(
-        latest_notes(Path.cwd(), package).provide(FileSystem.Protocol)(
-            FileSystem.Live()
-        )
+        repo.from_cwd(lambda cwd: latest_notes(cwd, package))
+        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .provide(E.Process.Protocol)(E.Process.Live())
     )
     typer.echo(section, nl=False)

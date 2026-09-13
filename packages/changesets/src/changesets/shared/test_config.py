@@ -1,10 +1,8 @@
-from pathlib import Path
-
 import effecton as E
 from changesets.shared import config
 from changesets.shared.config import Config, MalformedConfig
 
-PATH = Path("/repo/.changeset/config.toml")
+PATH = E.Path("/repo/.changeset/config.toml")
 
 
 def test_parses_the_packages_table():
@@ -15,8 +13,8 @@ def test_parses_the_packages_table():
     assert result == E.Succeeded(
         value=Config(
             packages={
-                "effecton": Path("packages/effecton"),
-                "other": Path("packages/other"),
+                "effecton": E.Path("packages/effecton"),
+                "other": E.Path("packages/other"),
             }
         )
     )

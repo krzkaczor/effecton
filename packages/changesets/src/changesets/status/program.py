@@ -1,10 +1,7 @@
 """The status flow: report pending changesets and the releases they produce."""
 
-from pathlib import Path
-
 import effecton as E
 from changesets.shared import changeset, config, pyproject_version, repo, semver
-from changesets.shared import file_system as FileSystem
 from changesets.shared.release_plan import plan_releases
 
 type StatusError = (
@@ -13,12 +10,12 @@ type StatusError = (
     | changeset.ChangesetError
     | semver.InvalidVersion
     | pyproject_version.VersionLineError
-    | FileSystem.FileSystemError
+    | E.FileSystem.FileSystemError
 )
 
 
 @E.gen
-def status(start: Path) -> E.EffectGen[str, StatusError, FileSystem.Protocol]:
+def status(start: E.Path) -> E.EffectGen[str, StatusError, E.FileSystem.Protocol]:
     root = yield from repo.find_root(start)
     cfg = yield from repo.load_config(root)
     changesets = yield from repo.load_changesets(root, cfg)

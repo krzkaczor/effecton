@@ -1,7 +1,4 @@
-from pathlib import Path
-
 import effecton as E
-from changesets.shared import file_system as FileSystem
 from changesets.shared import git as Git
 from changesets.shared.config import UnknownPackage
 from changesets.shared.github import NotAGitHubRemote
@@ -10,7 +7,7 @@ from changesets.shared.release_plan import Release
 from changesets.shared.semver import Version
 from changesets.version.program import apply_versions
 
-ROOT = Path("/repo")
+ROOT = E.Path("/repo")
 CS_DIR = ROOT / ".changeset"
 CONFIG = CS_DIR / "config.toml"
 CONFIG_TEXT = '[packages]\neffecton = "packages/effecton"\n'
@@ -23,7 +20,7 @@ PR = "https://github.com/krzkaczor/effecton/pull"
 
 def make_fs(extra_files=None):
     files = {CONFIG: CONFIG_TEXT, PYPROJECT: PYPROJECT_TEXT, **(extra_files or {})}
-    return FileSystem.Test(files=files, dirs={CS_DIR})
+    return E.FileSystem.Test(files=files)
 
 
 def make_git(subjects=None, origin=ORIGIN):
@@ -36,7 +33,7 @@ def wire(fs, git=None):
     loggers = E.CurrentLoggers((E.EffectonLogger(log=entries.append),))
     provided = (
         apply_versions(ROOT)
-        .provide(FileSystem.Protocol)(fs)
+        .provide(E.FileSystem.Protocol)(fs)
         .provide(Git.Protocol)(git or make_git())
     )
     return E.provide_implicit(provided, loggers)

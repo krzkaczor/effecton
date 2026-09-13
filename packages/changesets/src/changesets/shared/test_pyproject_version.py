@@ -1,10 +1,8 @@
-from pathlib import Path
-
 import effecton as E
 from changesets.shared import pyproject_version
 from changesets.shared.pyproject_version import AmbiguousVersionLine, MissingVersionLine
 
-PATH = Path("/repo/packages/effecton/pyproject.toml")
+PATH = E.Path("/repo/packages/effecton/pyproject.toml")
 TEXT = '[project]\nname = "effecton"\nversion = "0.1.0"\ndescription = "x"\n'
 
 

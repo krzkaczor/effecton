@@ -1,8 +1,8 @@
 """Render and splice CHANGELOG.md sections, JS-changesets style."""
 
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 
+import effecton as E
 from changesets.shared.changeset import Changeset
 from changesets.shared.github import PullRequest
 from changesets.shared.semver import BUMPS, Version
@@ -14,7 +14,7 @@ def render_section(
     package: str,
     version: Version,
     changesets: Sequence[Changeset],
-    pull_requests: Mapping[Path, PullRequest],
+    pull_requests: Mapping[E.Path, PullRequest],
 ) -> str:
     def bullet(c: Changeset) -> str:
         pr = pull_requests.get(c.path)

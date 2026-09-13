@@ -1,12 +1,11 @@
 """Locate the changeset repo and load its config and pending changesets."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import final
 
 import effecton as E
 from changesets.shared import changeset, config
-from changesets.shared import file_system as FileSystem
 from changesets.shared.changeset import Changeset
 from changesets.shared.config import Config
 
@@ -17,19 +16,30 @@ CONFIG_FILE = "config.toml"
 @final
 @dataclass(frozen=True)
 class NotAChangesetRepo(E.EffectonError):
-    start: Path
+    start: E.Path
 
     def __str__(self) -> str:
         return f"No .changeset directory found in {self.start} or any parent"
 
 
+def from_cwd[A, Err: E.EffectonError, R](
+    program: Callable[[E.Path], E.Effect[A, Err, R]],
+) -> E.Effect[A, Err, R | E.Process.Protocol]:
+    """Start a program from the current directory, read through the Process."""
+    return (
+        E.require(E.Process.Protocol)
+        .flat_map(lambda process: process.cwd())
+        .flat_map(program)
+    )
+
+
 @E.gen
 def find_root(
-    start: Path,
+    start: E.Path,
 ) -> E.EffectGen[
-    Path, NotAChangesetRepo | FileSystem.PermissionDenied, FileSystem.Protocol
+    E.Path, NotAChangesetRepo | E.FileSystem.PermissionDenied, E.FileSystem.Protocol
 ]:
-    fs = yield from E.require(FileSystem.Protocol)
+    fs = yield from E.require(E.FileSystem.Protocol)
 
     for candidate in (start, *start.parents):
         found = yield from fs.exists(candidate / CHANGESET_DIR)
@@ -40,34 +50,36 @@ def find_root(
 
 @E.gen
 def load_config(
-    root: Path,
+    root: E.Path,
 ) -> E.EffectGen[
-    Config, config.ConfigError | FileSystem.FileSystemError, FileSystem.Protocol
+    Config, config.ConfigError | E.FileSystem.FileSystemError, E.FileSystem.Protocol
 ]:
-    fs = yield from E.require(FileSystem.Protocol)
+    fs = yield from E.require(E.FileSystem.Protocol)
 
     path = root / CHANGESET_DIR / CONFIG_FILE
     found = yield from fs.exists(path)
     if not found:
         return (yield from E.fail(config.MissingConfig(path=path)))
-    text = yield from fs.read_text(path)
+    text = yield from fs.read_file_string(path)
     return (yield from config.parse(path, text))
 
 
 @E.gen
 def load_changesets(
-    root: Path, cfg: Config
+    root: E.Path, cfg: Config
 ) -> E.EffectGen[
     tuple[Changeset, ...],
-    changeset.ChangesetError | FileSystem.FileSystemError,
-    FileSystem.Protocol,
+    changeset.ChangesetError | E.FileSystem.FileSystemError,
+    E.FileSystem.Protocol,
 ]:
-    fs = yield from E.require(FileSystem.Protocol)
+    fs = yield from E.require(E.FileSystem.Protocol)
 
-    paths = yield from fs.list_markdown(root / CHANGESET_DIR)
+    entries = yield from fs.read_directory(root / CHANGESET_DIR)
     changesets: list[Changeset] = []
-    for path in paths:
-        text = yield from fs.read_text(path)
+    for path in entries:
+        if path.suffix != ".md":
+            continue
+        text = yield from fs.read_file_string(path)
         parsed = yield from changeset.parse(path, text, cfg.packages.keys())
         changesets.append(parsed)
     return tuple(changesets)

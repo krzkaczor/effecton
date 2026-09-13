@@ -1,12 +1,10 @@
 """The notes flow: extract the latest released changelog section."""
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import final
 
 import effecton as E
 from changesets.shared import changelog, config, repo
-from changesets.shared import file_system as FileSystem
 
 
 @final
@@ -23,15 +21,15 @@ type NotesError = (
     | config.ConfigError
     | config.UnknownPackage
     | NoReleasedVersion
-    | FileSystem.FileSystemError
+    | E.FileSystem.FileSystemError
 )
 
 
 @E.gen
 def latest_notes(
-    start: Path, package: str
-) -> E.EffectGen[str, NotesError, FileSystem.Protocol]:
-    fs = yield from E.require(FileSystem.Protocol)
+    start: E.Path, package: str
+) -> E.EffectGen[str, NotesError, E.FileSystem.Protocol]:
+    fs = yield from E.require(E.FileSystem.Protocol)
 
     root = yield from repo.find_root(start)
     cfg = yield from repo.load_config(root)
@@ -41,9 +39,9 @@ def latest_notes(
         return (yield from E.fail(error))
 
     changelog_path = root / cfg.packages[package] / "CHANGELOG.md"
-    text = yield from fs.read_text(changelog_path).catch(FileSystem.FileNotFound)(
-        lambda _: E.fail(NoReleasedVersion(package=package))
-    )
+    text = yield from fs.read_file_string(changelog_path).catch(
+        E.FileSystem.FileNotFound
+    )(lambda _: E.fail(NoReleasedVersion(package=package)))
     section = changelog.latest_section(text)
     match section:
         case None:

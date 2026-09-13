@@ -29,6 +29,8 @@ from effecton.run_sync import (
     run_sync_exit,
 )
 from effecton.std import clock as Clock
+from effecton.std import file_system as FileSystem
+from effecton.std import process as Process
 from effecton.std import random as Random
 from effecton.std.clock import _now as now
 from effecton.std.clock import _sleep as sleep
@@ -51,6 +53,7 @@ from effecton.std.logger import (
     log_trace,
     log_warning,
 )
+from effecton.std.path import Path
 from effecton.std.pretty_logger import PrettyFormatter, pretty_logger
 from effecton.std.race import race_first
 from effecton.std.random import _random as random
@@ -75,13 +78,16 @@ __all__ = [
     "Fail",
     "Failure",
     "Fiber",
+    "FileSystem",
     "ImplicitRequirement",
     "Interrupt",
     "LogData",
     "LogLevel",
     "MinimumLogLevel",
     "MissingRequirement",
+    "Path",
     "PrettyFormatter",
+    "Process",
     "Random",
     "Schedule",
     "Scope",
