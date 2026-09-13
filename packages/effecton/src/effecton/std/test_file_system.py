@@ -40,21 +40,13 @@ def run(fs, effect):
     return E.run_sync_exit(effect)
 
 
-def ok(value=None):
-    return E.Succeeded(value=value)
-
-
-def failed(error):
-    return E.Failure(cause=E.Fail(error))
-
-
 def test_write_then_read_string_round_trips(fs, root):
     path = root / "note.md"
 
     run(fs, fs.write_file_string(path, "hello"))
     result = run(fs, fs.read_file_string(path))
 
-    assert result == ok("hello")
+    assert result == E.Succeeded(value="hello")
 
 
 def test_bytes_and_strings_share_one_file(fs, root):
@@ -64,8 +56,8 @@ def test_bytes_and_strings_share_one_file(fs, root):
     as_bytes = run(fs, fs.read_file(path))
     as_text = run(fs, fs.read_file_string(path))
 
-    assert as_bytes == ok("héllo".encode())
-    assert as_text == ok("héllo")
+    assert as_bytes == E.Succeeded(value="héllo".encode())
+    assert as_text == E.Succeeded(value="héllo")
 
 
 def test_write_overwrites(fs, root):
@@ -74,7 +66,7 @@ def test_write_overwrites(fs, root):
     run(fs, fs.write_file_string(path, "one"))
     run(fs, fs.write_file_string(path, "two"))
 
-    assert run(fs, fs.read_file_string(path)) == ok("two")
+    assert run(fs, fs.read_file_string(path)) == E.Succeeded(value="two")
 
 
 def test_reading_a_missing_file_fails(fs, root):
@@ -82,13 +74,13 @@ def test_reading_a_missing_file_fails(fs, root):
 
     result = run(fs, fs.read_file_string(path))
 
-    assert result == failed(FS.FileNotFound(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=path)))
 
 
 def test_reading_a_directory_fails(fs, root):
     result = run(fs, fs.read_file(root))
 
-    assert result == failed(FS.PathIsADirectory(path=root))
+    assert result == E.Failure(cause=E.Fail(FS.PathIsADirectory(path=root)))
 
 
 def test_writing_under_a_missing_parent_fails(fs, root):
@@ -96,7 +88,7 @@ def test_writing_under_a_missing_parent_fails(fs, root):
 
     result = run(fs, fs.write_file_string(path, "x"))
 
-    assert result == failed(FS.FileNotFound(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=path)))
 
 
 def test_writing_under_a_file_fails(fs, root):
@@ -105,13 +97,13 @@ def test_writing_under_a_file_fails(fs, root):
 
     result = run(fs, fs.write_file_string(path, "x"))
 
-    assert result == failed(FS.PathIsNotADirectory(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.PathIsNotADirectory(path=path)))
 
 
 def test_writing_onto_a_directory_fails(fs, root):
     result = run(fs, fs.write_file(root, b"x"))
 
-    assert result == failed(FS.PathIsADirectory(path=root))
+    assert result == E.Failure(cause=E.Fail(FS.PathIsADirectory(path=root)))
 
 
 def test_exists_reflects_writes(fs, root):
@@ -121,7 +113,7 @@ def test_exists_reflects_writes(fs, root):
     run(fs, fs.write_file_string(path, "x"))
     after = run(fs, fs.exists(path))
 
-    assert (before, after) == (ok(False), ok(True))
+    assert (before, after) == (E.Succeeded(value=False), E.Succeeded(value=True))
 
 
 def test_exists_is_false_under_a_file(fs, root):
@@ -129,7 +121,7 @@ def test_exists_is_false_under_a_file(fs, root):
 
     result = run(fs, fs.exists(root / "file" / "child"))
 
-    assert result == ok(False)
+    assert result == E.Succeeded(value=False)
 
 
 def test_a_dangling_symlink_exists(fs, root):
@@ -138,7 +130,7 @@ def test_a_dangling_symlink_exists(fs, root):
 
     result = run(fs, fs.exists(link))
 
-    assert result == ok(True)
+    assert result == E.Succeeded(value=True)
 
 
 def test_stat_describes_the_entry_itself(fs, root):
@@ -164,7 +156,7 @@ def test_stat_of_a_missing_path_fails(fs, root):
 
     result = run(fs, fs.stat(path))
 
-    assert result == failed(FS.FileNotFound(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=path)))
 
 
 def test_make_directory_creates_one_level(fs, root):
@@ -172,8 +164,8 @@ def test_make_directory_creates_one_level(fs, root):
 
     result = run(fs, fs.make_directory(path))
 
-    assert result == ok()
-    assert run(fs, fs.read_directory(root)) == ok((path,))
+    assert result == E.Succeeded(value=None)
+    assert run(fs, fs.read_directory(root)) == E.Succeeded(value=(path,))
 
 
 def test_make_directory_fails_when_the_path_is_taken(fs, root):
@@ -188,8 +180,10 @@ def test_make_directory_fails_when_the_path_is_taken(fs, root):
         ),
     )
 
-    assert again == failed(FS.PathAlreadyExists(path=path))
-    assert recursive_over_file == failed(FS.PathAlreadyExists(path=root / "file"))
+    assert again == E.Failure(cause=E.Fail(FS.PathAlreadyExists(path=path)))
+    assert recursive_over_file == E.Failure(
+        cause=E.Fail(FS.PathAlreadyExists(path=root / "file"))
+    )
 
 
 def test_make_directory_fails_under_a_missing_parent(fs, root):
@@ -197,7 +191,7 @@ def test_make_directory_fails_under_a_missing_parent(fs, root):
 
     result = run(fs, fs.make_directory(path))
 
-    assert result == failed(FS.FileNotFound(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=path)))
 
 
 def test_make_directory_fails_under_a_file(fs, root):
@@ -207,8 +201,8 @@ def test_make_directory_fails_under_a_file(fs, root):
     plain = run(fs, fs.make_directory(path))
     recursive = run(fs, fs.make_directory(path, recursive=True))
 
-    assert plain == failed(FS.PathIsNotADirectory(path=path))
-    assert recursive == failed(FS.PathIsNotADirectory(path=path))
+    assert plain == E.Failure(cause=E.Fail(FS.PathIsNotADirectory(path=path)))
+    assert recursive == E.Failure(cause=E.Fail(FS.PathIsNotADirectory(path=path)))
 
 
 def test_recursive_make_directory_creates_parents_and_is_idempotent(fs, root):
@@ -217,8 +211,10 @@ def test_recursive_make_directory_creates_parents_and_is_idempotent(fs, root):
     first = run(fs, fs.make_directory(path, recursive=True))
     second = run(fs, fs.make_directory(path, recursive=True))
 
-    assert (first, second) == (ok(), ok())
-    assert run(fs, fs.read_directory(root / "a")) == ok((root / "a" / "b",))
+    assert (first, second) == (E.Succeeded(value=None), E.Succeeded(value=None))
+    assert run(fs, fs.read_directory(root / "a")) == E.Succeeded(
+        value=(root / "a" / "b",)
+    )
 
 
 def test_read_directory_lists_full_paths_sorted(fs, root):
@@ -229,7 +225,9 @@ def test_read_directory_lists_full_paths_sorted(fs, root):
 
     result = run(fs, fs.read_directory(root))
 
-    assert result == ok((root / "a.md", root / "b.md", root / "c", root / "d"))
+    assert result == E.Succeeded(
+        value=(root / "a.md", root / "b.md", root / "c", root / "d")
+    )
 
 
 def test_read_directory_of_an_empty_directory_is_empty(fs, root):
@@ -237,7 +235,7 @@ def test_read_directory_of_an_empty_directory_is_empty(fs, root):
 
     result = run(fs, fs.read_directory(root / "empty"))
 
-    assert result == ok(())
+    assert result == E.Succeeded(value=())
 
 
 def test_read_directory_fails_for_a_missing_path_and_for_a_file(fs, root):
@@ -246,8 +244,8 @@ def test_read_directory_fails_for_a_missing_path_and_for_a_file(fs, root):
     missing = run(fs, fs.read_directory(root / "missing"))
     file = run(fs, fs.read_directory(root / "file"))
 
-    assert missing == failed(FS.FileNotFound(path=root / "missing"))
-    assert file == failed(FS.PathIsNotADirectory(path=root / "file"))
+    assert missing == E.Failure(cause=E.Fail(FS.FileNotFound(path=root / "missing")))
+    assert file == E.Failure(cause=E.Fail(FS.PathIsNotADirectory(path=root / "file")))
 
 
 def test_remove_deletes_a_file_and_an_empty_directory(fs, root):
@@ -257,8 +255,8 @@ def test_remove_deletes_a_file_and_an_empty_directory(fs, root):
     file = run(fs, fs.remove(root / "file"))
     directory = run(fs, fs.remove(root / "dir"))
 
-    assert (file, directory) == (ok(), ok())
-    assert run(fs, fs.read_directory(root)) == ok(())
+    assert (file, directory) == (E.Succeeded(value=None), E.Succeeded(value=None))
+    assert run(fs, fs.read_directory(root)) == E.Succeeded(value=())
 
 
 def test_remove_refuses_a_non_empty_directory_unless_recursive(fs, root):
@@ -268,16 +266,16 @@ def test_remove_refuses_a_non_empty_directory_unless_recursive(fs, root):
     plain = run(fs, fs.remove(root / "dir"))
     recursive = run(fs, fs.remove(root / "dir", recursive=True))
 
-    assert plain == failed(FS.DirectoryNotEmpty(path=root / "dir"))
-    assert recursive == ok()
-    assert run(fs, fs.exists(root / "dir")) == ok(False)
-    assert run(fs, fs.exists(root / "dir" / "sub" / "file")) == ok(False)
+    assert plain == E.Failure(cause=E.Fail(FS.DirectoryNotEmpty(path=root / "dir")))
+    assert recursive == E.Succeeded(value=None)
+    assert run(fs, fs.exists(root / "dir")) == E.Succeeded(value=False)
+    assert run(fs, fs.exists(root / "dir" / "sub" / "file")) == E.Succeeded(value=False)
 
 
 def test_remove_of_a_missing_path_fails(fs, root):
     result = run(fs, fs.remove(root / "missing"))
 
-    assert result == failed(FS.FileNotFound(path=root / "missing"))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=root / "missing")))
 
 
 def test_remove_of_a_symlink_keeps_the_target(fs, root):
@@ -287,9 +285,9 @@ def test_remove_of_a_symlink_keeps_the_target(fs, root):
 
     result = run(fs, fs.remove(root / "link", recursive=True))
 
-    assert result == ok()
-    assert run(fs, fs.exists(root / "link")) == ok(False)
-    assert run(fs, fs.read_file_string(root / "dir" / "file")) == ok("x")
+    assert result == E.Succeeded(value=None)
+    assert run(fs, fs.exists(root / "link")) == E.Succeeded(value=False)
+    assert run(fs, fs.read_file_string(root / "dir" / "file")) == E.Succeeded(value="x")
 
 
 def test_rename_moves_a_file_and_replaces_an_existing_one(fs, root):
@@ -299,9 +297,11 @@ def test_rename_moves_a_file_and_replaces_an_existing_one(fs, root):
     moved = run(fs, fs.rename(root / "old", root / "new"))
     replaced = run(fs, fs.rename(root / "new", root / "taken"))
 
-    assert (moved, replaced) == (ok(), ok())
-    assert run(fs, fs.read_directory(root)) == ok((root / "taken",))
-    assert run(fs, fs.read_file_string(root / "taken")) == ok("new content")
+    assert (moved, replaced) == (E.Succeeded(value=None), E.Succeeded(value=None))
+    assert run(fs, fs.read_directory(root)) == E.Succeeded(value=(root / "taken",))
+    assert run(fs, fs.read_file_string(root / "taken")) == E.Succeeded(
+        value="new content"
+    )
 
 
 def test_rename_moves_a_directory_with_its_contents(fs, root):
@@ -310,9 +310,11 @@ def test_rename_moves_a_directory_with_its_contents(fs, root):
 
     result = run(fs, fs.rename(root / "old", root / "new"))
 
-    assert result == ok()
-    assert run(fs, fs.exists(root / "old")) == ok(False)
-    assert run(fs, fs.read_file_string(root / "new" / "sub" / "file")) == ok("x")
+    assert result == E.Succeeded(value=None)
+    assert run(fs, fs.exists(root / "old")) == E.Succeeded(value=False)
+    assert run(fs, fs.read_file_string(root / "new" / "sub" / "file")) == E.Succeeded(
+        value="x"
+    )
 
 
 def test_rename_onto_the_wrong_kind_fails(fs, root):
@@ -327,11 +329,17 @@ def test_rename_onto_the_wrong_kind_fails(fs, root):
     dir_onto_full = run(fs, fs.rename(root / "dir", root / "full"))
     dir_onto_empty = run(fs, fs.rename(root / "dir", root / "empty"))
 
-    assert file_onto_dir == failed(FS.PathIsADirectory(path=root / "dir"))
-    assert dir_onto_file == failed(FS.PathIsNotADirectory(path=root / "file"))
-    assert dir_onto_full == failed(FS.DirectoryNotEmpty(path=root / "full"))
-    assert dir_onto_empty == ok()
-    assert run(fs, fs.exists(root / "dir")) == ok(False)
+    assert file_onto_dir == E.Failure(
+        cause=E.Fail(FS.PathIsADirectory(path=root / "dir"))
+    )
+    assert dir_onto_file == E.Failure(
+        cause=E.Fail(FS.PathIsNotADirectory(path=root / "file"))
+    )
+    assert dir_onto_full == E.Failure(
+        cause=E.Fail(FS.DirectoryNotEmpty(path=root / "full"))
+    )
+    assert dir_onto_empty == E.Succeeded(value=None)
+    assert run(fs, fs.exists(root / "dir")) == E.Succeeded(value=False)
 
 
 def test_rename_reports_the_side_that_is_missing(fs, root):
@@ -340,8 +348,12 @@ def test_rename_reports_the_side_that_is_missing(fs, root):
     missing_source = run(fs, fs.rename(root / "missing", root / "new"))
     missing_parent = run(fs, fs.rename(root / "file", root / "nowhere" / "new"))
 
-    assert missing_source == failed(FS.FileNotFound(path=root / "missing"))
-    assert missing_parent == failed(FS.FileNotFound(path=root / "nowhere" / "new"))
+    assert missing_source == E.Failure(
+        cause=E.Fail(FS.FileNotFound(path=root / "missing"))
+    )
+    assert missing_parent == E.Failure(
+        cause=E.Fail(FS.FileNotFound(path=root / "nowhere" / "new"))
+    )
 
 
 def test_copy_file_duplicates_the_content(fs, root):
@@ -349,9 +361,9 @@ def test_copy_file_duplicates_the_content(fs, root):
 
     result = run(fs, fs.copy_file(root / "src", root / "dst"))
 
-    assert result == ok()
-    assert run(fs, fs.read_file_string(root / "src")) == ok("x")
-    assert run(fs, fs.read_file_string(root / "dst")) == ok("x")
+    assert result == E.Succeeded(value=None)
+    assert run(fs, fs.read_file_string(root / "src")) == E.Succeeded(value="x")
+    assert run(fs, fs.read_file_string(root / "dst")) == E.Succeeded(value="x")
 
 
 def test_copy_file_reports_the_side_that_failed(fs, root):
@@ -363,10 +375,18 @@ def test_copy_file_reports_the_side_that_failed(fs, root):
     target_is_dir = run(fs, fs.copy_file(root / "src", root / "dir"))
     missing_parent = run(fs, fs.copy_file(root / "src", root / "nowhere" / "dst"))
 
-    assert missing_source == failed(FS.FileNotFound(path=root / "missing"))
-    assert source_is_dir == failed(FS.PathIsADirectory(path=root / "dir"))
-    assert target_is_dir == failed(FS.PathIsADirectory(path=root / "dir"))
-    assert missing_parent == failed(FS.FileNotFound(path=root / "nowhere" / "dst"))
+    assert missing_source == E.Failure(
+        cause=E.Fail(FS.FileNotFound(path=root / "missing"))
+    )
+    assert source_is_dir == E.Failure(
+        cause=E.Fail(FS.PathIsADirectory(path=root / "dir"))
+    )
+    assert target_is_dir == E.Failure(
+        cause=E.Fail(FS.PathIsADirectory(path=root / "dir"))
+    )
+    assert missing_parent == E.Failure(
+        cause=E.Fail(FS.FileNotFound(path=root / "nowhere" / "dst"))
+    )
 
 
 def test_symlink_points_at_its_target_and_reads_through(fs, root):
@@ -374,9 +394,9 @@ def test_symlink_points_at_its_target_and_reads_through(fs, root):
 
     created = run(fs, fs.symlink(root / "file", root / "link"))
 
-    assert created == ok()
-    assert run(fs, fs.read_link(root / "link")) == ok(root / "file")
-    assert run(fs, fs.read_file_string(root / "link")) == ok("x")
+    assert created == E.Succeeded(value=None)
+    assert run(fs, fs.read_link(root / "link")) == E.Succeeded(value=root / "file")
+    assert run(fs, fs.read_file_string(root / "link")) == E.Succeeded(value="x")
 
 
 def test_reading_through_a_dangling_symlink_fails(fs, root):
@@ -384,7 +404,7 @@ def test_reading_through_a_dangling_symlink_fails(fs, root):
 
     result = run(fs, fs.read_file_string(root / "link"))
 
-    assert result == failed(FS.FileNotFound(path=root / "link"))
+    assert result == E.Failure(cause=E.Fail(FS.FileNotFound(path=root / "link")))
 
 
 def test_symlink_fails_when_the_link_path_is_taken_or_has_no_parent(fs, root):
@@ -393,8 +413,10 @@ def test_symlink_fails_when_the_link_path_is_taken_or_has_no_parent(fs, root):
     taken = run(fs, fs.symlink(root / "other", root / "link"))
     no_parent = run(fs, fs.symlink(root / "other", root / "nowhere" / "link"))
 
-    assert taken == failed(FS.PathAlreadyExists(path=root / "link"))
-    assert no_parent == failed(FS.FileNotFound(path=root / "nowhere" / "link"))
+    assert taken == E.Failure(cause=E.Fail(FS.PathAlreadyExists(path=root / "link")))
+    assert no_parent == E.Failure(
+        cause=E.Fail(FS.FileNotFound(path=root / "nowhere" / "link"))
+    )
 
 
 def test_read_link_fails_for_a_missing_path_and_dies_for_a_file(fs, root):
@@ -403,7 +425,7 @@ def test_read_link_fails_for_a_missing_path_and_dies_for_a_file(fs, root):
     missing = run(fs, fs.read_link(root / "missing"))
     file = run(fs, fs.read_link(root / "file"))
 
-    assert missing == failed(FS.FileNotFound(path=root / "missing"))
+    assert missing == E.Failure(cause=E.Fail(FS.FileNotFound(path=root / "missing")))
     assert isinstance(file, E.Failure)
     assert isinstance(file.cause, E.Die)
     assert isinstance(file.cause.defect, OSError)
@@ -417,8 +439,8 @@ def test_effects_are_reusable_values(fs, root):
     run(fs, fs.remove(path))
     rerun = run(fs, write)
 
-    assert rerun == ok()
-    assert run(fs, fs.read_file_string(path)) == ok("again")
+    assert rerun == E.Succeeded(value=None)
+    assert run(fs, fs.read_file_string(path)) == E.Succeeded(value="again")
 
 
 def test_async_live_dies_under_run_sync():
@@ -437,7 +459,7 @@ def test_live_exists_fails_without_search_permission_on_the_parent(live, tmp_pat
     result = run(live, live.exists(probe))
     locked.chmod(0o755)
 
-    assert result == failed(FS.PermissionDenied(path=probe))
+    assert result == E.Failure(cause=E.Fail(FS.PermissionDenied(path=probe)))
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
@@ -452,9 +474,11 @@ def test_live_writes_fail_without_write_permission_on_the_parent(live, tmp_path)
     link = run(live, live.symlink(directory, directory / "link"))
     readonly.chmod(0o755)
 
-    assert write == failed(FS.PermissionDenied(path=directory / "file"))
-    assert mkdir == failed(FS.PermissionDenied(path=directory / "dir"))
-    assert link == failed(FS.PermissionDenied(path=directory / "link"))
+    assert write == E.Failure(
+        cause=E.Fail(FS.PermissionDenied(path=directory / "file"))
+    )
+    assert mkdir == E.Failure(cause=E.Fail(FS.PermissionDenied(path=directory / "dir")))
+    assert link == E.Failure(cause=E.Fail(FS.PermissionDenied(path=directory / "link")))
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
@@ -467,7 +491,7 @@ def test_live_reads_fail_without_read_permission(live, tmp_path):
     result = run(live, live.read_file_string(path))
     secret.chmod(0o644)
 
-    assert result == failed(FS.PermissionDenied(path=path))
+    assert result == E.Failure(cause=E.Fail(FS.PermissionDenied(path=path)))
 
 
 def test_test_seeds_every_ancestor_directory():
