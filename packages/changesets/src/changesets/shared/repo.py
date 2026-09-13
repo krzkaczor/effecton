@@ -52,7 +52,13 @@ def find_root(
 def load_config(
     root: E.Path,
 ) -> E.EffectGen[
-    Config, config.ConfigError | E.FileSystem.FileSystemError, E.FileSystem.Protocol
+    Config,
+    config.ConfigError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory,
+    E.FileSystem.Protocol,
+| E.FileSystem.FileSystemError, E.FileSystem.Protocol
 ]:
     fs = yield from E.require(E.FileSystem.Protocol)
 
@@ -69,7 +75,12 @@ def load_changesets(
     root: E.Path, cfg: Config
 ) -> E.EffectGen[
     tuple[Changeset, ...],
-    changeset.ChangesetError | E.FileSystem.FileSystemError,
+    changeset.ChangesetError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory
+    | E.FileSystem.PathIsNotADirectory,
+| E.FileSystem.FileSystemError,
     E.FileSystem.Protocol,
 ]:
     fs = yield from E.require(E.FileSystem.Protocol)
