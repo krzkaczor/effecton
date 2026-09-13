@@ -30,11 +30,11 @@ def test_test_returns_the_configured_directories():
     assert (cwd, home) == (E.Path("/repo"), E.Path("/home/me"))
 
 
-def test_test_defaults_both_directories_to_the_root():
+def test_test_defaults_to_the_root_and_a_home_directory():
     process = E.Process.Test()
 
     assert E.run_sync(process.cwd()) == E.Path("/")
-    assert E.run_sync(process.home()) == E.Path("/")
+    assert E.run_sync(process.home()) == E.Path("/home")
 
 
 def test_provided_as_a_requirement():

@@ -41,13 +41,14 @@ class Live(Protocol):
 
 
 _ROOT = Path("/")
+_HOME = Path("/home")
 
 
 @final
 @dataclass
 class Test(Protocol):
     current_directory: Path = _ROOT
-    home_directory: Path = _ROOT
+    home_directory: Path = _HOME
 
     def cwd(self) -> Effect[Path]:
         return sync(lambda: self.current_directory)
