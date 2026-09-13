@@ -7,9 +7,9 @@ calls through aiofiles, so the loop keeps turning under run_async and
 run_main. Both share one error mapping: the failures a program reacts to
 (a missing file, permissions, a directory where a file should be and the
 reverse, a path already taken, a directory that is not empty) are typed,
-and everything else, such as disk full or an I/O error, stays a defect. Test keeps the
-tree in dicts and enforces the same rules, so a program sees the same
-Exit whichever implementation it runs against.
+and everything else, such as disk full or an I/O error, stays a defect.
+Test keeps the tree in dicts and enforces the same rules, so a program
+sees the same Exit whichever implementation it runs against.
 
 Naming follows Effect-TS's FileSystem with these deliberate differences:
 read_directory returns full paths rather than names, exists does not
