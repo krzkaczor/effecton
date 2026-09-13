@@ -470,7 +470,7 @@ program = read_config(E.Path("/repo"))
 E.run_sync(program.provide(E.FileSystem.Protocol)(E.FileSystem.SyncLive()))
 ```
 
-There are two live implementations, one per runner, like the Clock: `E.FileSystem.SyncLive` blocks the thread on the `os` calls and suits `run_sync`; `E.FileSystem.AsyncLive` makes the same calls through [aiofiles](https://github.com/Tinche/aiofiles), so the loop keeps turning under `run_async` and `run_main`. aiofiles is an optional extra, `pip install 'effecton[aiofiles]'`; effecton itself still has no required dependencies.
+There are two live implementations, one per runner, like the Clock: `E.FileSystem.SyncLive` blocks the thread on the `os` calls and suits `run_sync`; `E.FileSystem.AsyncLive` makes the same calls through [aiofiles](https://github.com/Tinche/aiofiles), so the loop keeps turning under `run_async` and `run_main`. aiofiles is a dependency of effecton, so both implementations are always available.
 
 In tests, provide `E.FileSystem.Test`, an in-memory tree seeded with `files` (text or bytes), `directories` and `links`; every ancestor of a seeded path is created for you. It enforces the same rules as the disk, so a program gets the same `Exit` against `Test` as against a live implementation, and its state stays inspectable afterwards:
 

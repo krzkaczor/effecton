@@ -427,13 +427,6 @@ def test_async_live_dies_under_run_sync():
     assert result == E.Failure(cause=E.Die(defect=E.AsyncEffectInSyncRun()))
 
 
-def test_async_live_needs_the_aiofiles_extra(monkeypatch):
-    monkeypatch.setattr(FS, "_aiofiles_missing", True)
-
-    with pytest.raises(RuntimeError, match=r"pip install 'effecton\[aiofiles\]'"):
-        FS.AsyncLive()
-
-
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
 def test_live_exists_fails_without_search_permission_on_the_parent(live, tmp_path):
     locked = tmp_path / "locked"

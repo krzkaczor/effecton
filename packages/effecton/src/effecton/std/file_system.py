@@ -3,12 +3,11 @@
 Paths are E.Path values, and this module is the only place where they
 touch the disk. SyncLive calls the os-level standard library (os.*, open)
 and blocks the thread, so it suits run_sync; AsyncLive makes the same
-calls through aiofiles (an optional extra: pip install 'effecton[aiofiles]'),
-so the loop keeps turning under run_async and run_main. Both share one
-error mapping: the failures a program reacts to (a missing file,
-permissions, a directory where a file should be and the reverse, a path
-already taken, a directory that is not empty) are typed, and everything
-else, such as disk full or an I/O error, stays a defect. Test keeps the
+calls through aiofiles, so the loop keeps turning under run_async and
+run_main. Both share one error mapping: the failures a program reacts to
+(a missing file, permissions, a directory where a file should be and the
+reverse, a path already taken, a directory that is not empty) are typed,
+and everything else, such as disk full or an I/O error, stays a defect. Test keeps the
 tree in dicts and enforces the same rules, so a program sees the same
 Exit whichever implementation it runs against.
 
@@ -29,18 +28,13 @@ from datetime import UTC, datetime
 from stat import S_ISDIR, S_ISLNK, S_ISREG
 from typing import Literal, final, runtime_checkable
 
+import aiofiles
+import aiofiles.os
+
 from effecton.attempt import attempt, attempt_async
 from effecton.effect import Effect, EffectonError, die, fail, success, sync
 from effecton.std.path import Path
 from effecton.suspend import suspend
-
-try:
-    import aiofiles
-    import aiofiles.os
-except ModuleNotFoundError:
-    _aiofiles_missing = True
-else:
-    _aiofiles_missing = False
 
 
 @final
@@ -317,15 +311,8 @@ class AsyncLive(Protocol):
     loop keeps turning while a worker thread does the I/O. Under run_sync
     the effects die with AsyncEffectInSyncRun, like any coroutine effect;
     a cancellation abandons the blocking call in its thread rather than
-    aborting it. Needs the aiofiles extra: pip install 'effecton[aiofiles]'.
+    aborting it.
     """
-
-    def __post_init__(self) -> None:
-        if _aiofiles_missing:
-            raise RuntimeError(
-                "FileSystem.AsyncLive needs the aiofiles extra: "
-                "pip install 'effecton[aiofiles]'"
-            )
 
     def exists(self, path: Path) -> Effect[bool, PermissionDenied]:
         async def go() -> bool:

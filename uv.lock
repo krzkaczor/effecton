@@ -61,7 +61,7 @@ name = "changesets"
 version = "0.1.0"
 source = { editable = "packages/changesets" }
 dependencies = [
-    { name = "effecton", extra = ["aiofiles"] },
+    { name = "effecton" },
     { name = "python-frontmatter" },
     { name = "typer" },
 ]
@@ -73,7 +73,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "effecton", extras = ["aiofiles"], editable = "packages/effecton" },
+    { name = "effecton", editable = "packages/effecton" },
     { name = "python-frontmatter", specifier = ">=1.1" },
     { name = "typer", specifier = ">=0.15" },
 ]
@@ -95,32 +95,23 @@ name = "effecton"
 version = "0.2.1"
 source = { editable = "packages/effecton" }
 dependencies = [
-    { name = "typing-extensions" },
-]
-
-[package.optional-dependencies]
-aiofiles = [
     { name = "aiofiles" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "aiofiles" },
     { name = "types-aiofiles" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "aiofiles", marker = "extra == 'aiofiles'", specifier = ">=25.1" },
+    { name = "aiofiles", specifier = ">=25.1" },
     { name = "typing-extensions", specifier = ">=4.16.0" },
 ]
-provides-extras = ["aiofiles"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "aiofiles", specifier = ">=25.1" },
-    { name = "types-aiofiles", specifier = ">=25.1" },
-]
+dev = [{ name = "types-aiofiles", specifier = ">=25.1" }]
 
 [[package]]
 name = "h11"
@@ -331,7 +322,7 @@ name = "skills-cli"
 version = "0.1.0"
 source = { editable = "packages/examples/skills-cli" }
 dependencies = [
-    { name = "effecton", extra = ["aiofiles"] },
+    { name = "effecton" },
     { name = "httpx" },
     { name = "python-frontmatter" },
     { name = "typer" },
@@ -344,7 +335,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "effecton", extras = ["aiofiles"], editable = "packages/effecton" },
+    { name = "effecton", editable = "packages/effecton" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "python-frontmatter", specifier = ">=1.1" },
     { name = "typer", specifier = ">=0.15" },
