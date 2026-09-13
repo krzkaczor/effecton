@@ -58,7 +58,6 @@ def load_config(
     | E.FileSystem.PermissionDenied
     | E.FileSystem.PathIsADirectory,
     E.FileSystem.Protocol,
-| E.FileSystem.FileSystemError, E.FileSystem.Protocol
 ]:
     fs = yield from E.require(E.FileSystem.Protocol)
 
@@ -80,7 +79,6 @@ def load_changesets(
     | E.FileSystem.PermissionDenied
     | E.FileSystem.PathIsADirectory
     | E.FileSystem.PathIsNotADirectory,
-| E.FileSystem.FileSystemError,
     E.FileSystem.Protocol,
 ]:
     fs = yield from E.require(E.FileSystem.Protocol)

@@ -21,7 +21,9 @@ type NotesError = (
     | config.ConfigError
     | config.UnknownPackage
     | NoReleasedVersion
-    | E.FileSystem.FileSystemError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory
 )
 
 

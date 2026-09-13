@@ -11,7 +11,10 @@ type AddError = (
     repo.NotAChangesetRepo
     | config.ConfigError
     | config.UnknownPackage
-    | E.FileSystem.FileSystemError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory
+    | E.FileSystem.PathIsNotADirectory
 )
 
 

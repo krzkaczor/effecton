@@ -11,7 +11,11 @@ type InstallError = (
     parse_url.ParseUrlError
     | HttpClient.HttpError
     | skill.FrontmatterParseError
-    | E.FileSystem.FileSystemError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory
+    | E.FileSystem.PathIsNotADirectory
+    | E.FileSystem.PathAlreadyExists
 )
 
 

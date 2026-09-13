@@ -23,7 +23,9 @@ def plan_releases(
     tuple[Release, ...],
     semver.InvalidVersion
     | pyproject_version.VersionLineError
-    | E.FileSystem.FileSystemError,
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory,
     E.FileSystem.Protocol,
 ]:
     fs = yield from E.require(E.FileSystem.Protocol)

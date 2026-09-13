@@ -19,7 +19,11 @@ type ApplyError = (
     | changeset.ChangesetError
     | semver.InvalidVersion
     | pyproject_version.VersionLineError
-    | E.FileSystem.FileSystemError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathIsADirectory
+    | E.FileSystem.PathIsNotADirectory
+    | E.FileSystem.DirectoryNotEmpty
     | Git.GitError
     | github.NotAGitHubRemote
 )
