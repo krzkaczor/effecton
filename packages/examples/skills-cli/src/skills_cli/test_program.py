@@ -1,5 +1,4 @@
 import effecton as E
-from skills_cli import http_client as HttpClient
 from skills_cli import parse_url
 from skills_cli import terminal as Terminal
 from skills_cli.program import InstallError, install_skill
@@ -20,14 +19,14 @@ def capture() -> tuple[list[E.LogData], E.CurrentLoggers]:
 
 def wire(
     fs: E.FileSystem.Test,
-    http: HttpClient.Test,
+    http: E.HttpClient.Test,
     terminal: Terminal.Test,
     url: str = URL,
 ) -> tuple[list[E.LogData], E.Effect[str, InstallError]]:
     provided = (
         install_skill(url, HOME)
         .provide(E.FileSystem.Protocol)(fs)
-        .provide(HttpClient.Protocol)(http)
+        .provide(E.HttpClient.Protocol)(http)
         .provide(Terminal.Protocol)(terminal)
     )
     entries, loggers = capture()
@@ -36,7 +35,7 @@ def wire(
 
 def test_installs_an_already_slash_command_skill_without_prompting():
     fs = E.FileSystem.Test()
-    http = HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
+    http = E.HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
     terminal = Terminal.Test()
     entries, program = wire(fs, http, terminal)
 
@@ -56,7 +55,7 @@ def test_installs_an_already_slash_command_skill_without_prompting():
 
 def test_converts_to_a_slash_command_when_confirmed():
     fs = E.FileSystem.Test()
-    http = HttpClient.Test(responses={RAW_URL: PLAIN_BODY})
+    http = E.HttpClient.Test(responses={RAW_URL: PLAIN_BODY})
     terminal = Terminal.Test(answer=True)
     _, program = wire(fs, http, terminal)
 
@@ -73,7 +72,7 @@ def test_converts_to_a_slash_command_when_confirmed():
 
 def test_keeps_the_body_verbatim_when_conversion_is_declined():
     fs = E.FileSystem.Test()
-    http = HttpClient.Test(responses={RAW_URL: PLAIN_BODY})
+    http = E.HttpClient.Test(responses={RAW_URL: PLAIN_BODY})
     terminal = Terminal.Test(answer=False)
     _, program = wire(fs, http, terminal)
 
@@ -85,7 +84,7 @@ def test_keeps_the_body_verbatim_when_conversion_is_declined():
 
 def test_warns_when_the_skill_dir_already_exists():
     fs = E.FileSystem.Test(directories={SKILL_DIR})
-    http = HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
+    http = E.HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
     entries, program = wire(fs, http, Terminal.Test())
 
     result = E.run_sync_exit(program)
@@ -99,7 +98,7 @@ def test_warns_when_the_skill_dir_already_exists():
 def test_skips_an_already_existing_symlink():
     existing_target = E.Path("/elsewhere")
     fs = E.FileSystem.Test(links={LINK: existing_target})
-    http = HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
+    http = E.HttpClient.Test(responses={RAW_URL: SLASH_CMD_BODY})
     entries, program = wire(fs, http, Terminal.Test())
 
     result = E.run_sync_exit(program)
@@ -111,7 +110,7 @@ def test_skips_an_already_existing_symlink():
 
 def test_an_invalid_url_fails_before_touching_anything():
     fs = E.FileSystem.Test()
-    http = HttpClient.Test()
+    http = E.HttpClient.Test()
     terminal = Terminal.Test()
     url = "https://gitlab.com/octo/my-skill/blob/main/SKILL.md"
     _, program = wire(fs, http, terminal, url=url)
@@ -128,11 +127,11 @@ def test_an_invalid_url_fails_before_touching_anything():
 
 def test_an_http_failure_propagates():
     fs = E.FileSystem.Test()
-    _, program = wire(fs, HttpClient.Test(), Terminal.Test())
+    _, program = wire(fs, E.HttpClient.Test(), Terminal.Test())
 
     result = E.run_sync_exit(program)
 
     assert result == E.Failure(
-        cause=E.Fail(HttpClient.HttpStatusError(url=RAW_URL, status_code=404))
+        cause=E.Fail(E.HttpClient.StatusError(method="GET", url=RAW_URL, status=404))
     )
     assert fs.files == {}

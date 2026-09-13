@@ -1,15 +1,15 @@
 """The whole install flow as one @gen program over the three services."""
 
 import effecton as E
-from skills_cli import http_client as HttpClient
 from skills_cli import parse_url, skill
 from skills_cli import terminal as Terminal
 
-type Services = E.FileSystem.Protocol | HttpClient.Protocol | Terminal.Protocol
+type Services = E.FileSystem.Protocol | E.HttpClient.Protocol | Terminal.Protocol
 
 type InstallError = (
     parse_url.ParseUrlError
-    | HttpClient.HttpError
+    | E.HttpClient.TransportError
+    | E.HttpClient.StatusError
     | skill.FrontmatterParseError
     | E.FileSystem.FileNotFound
     | E.FileSystem.PermissionDenied
@@ -22,12 +22,14 @@ type InstallError = (
 @E.gen
 def install_skill(url: str, home: E.Path) -> E.EffectGen[str, InstallError, Services]:
     fs = yield from E.require(E.FileSystem.Protocol)
-    http = yield from E.require(HttpClient.Protocol)
+    http = yield from E.require(E.HttpClient.Protocol)
     terminal = yield from E.require(Terminal.Protocol)
 
     parsed = yield from parse_url.parse(url)
     yield from E.log_info("Getting skill at:", parsed.raw_url)
-    body = yield from http.get_text(parsed.raw_url)
+    response = yield from http.get(parsed.raw_url)
+    response = yield from E.HttpClient.filter_status_ok(response)
+    body = response.text
 
     parsed_body = yield from skill.parse(body)
     if not skill.is_model_invocation_disabled(parsed_body):

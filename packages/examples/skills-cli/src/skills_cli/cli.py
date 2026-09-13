@@ -3,7 +3,6 @@
 import typer
 
 import effecton as E
-from skills_cli import http_client as HttpClient
 from skills_cli import terminal as Terminal
 from skills_cli.program import install_skill
 
@@ -15,7 +14,7 @@ def main(skill_url: str) -> None:
         .flat_map(lambda home: install_skill(skill_url, home))
         .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
         .provide(E.Process.Protocol)(E.Process.Live())
-        .provide(HttpClient.Protocol)(HttpClient.Live())
+        .provide(E.HttpClient.Protocol)(E.HttpClient.AsyncLive())
         .provide(Terminal.Protocol)(Terminal.Live())
     )
 

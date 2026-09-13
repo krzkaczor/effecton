@@ -30,6 +30,7 @@ from effecton.run_sync import (
 )
 from effecton.std import clock as Clock
 from effecton.std import file_system as FileSystem
+from effecton.std import http_client as HttpClient
 from effecton.std import process as Process
 from effecton.std import random as Random
 from effecton.std.clock import _now as now
@@ -79,6 +80,7 @@ __all__ = [
     "Failure",
     "Fiber",
     "FileSystem",
+    "HttpClient",
     "ImplicitRequirement",
     "Interrupt",
     "LogData",

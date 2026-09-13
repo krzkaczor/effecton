@@ -53,6 +53,9 @@ ignore = ["ANN204"]
 "packages/effecton/src/effecton/std/file_system.py" = ["TID251", "PTH"]
 "packages/effecton/src/effecton/std/test_file_system.py" = ["TID251", "PTH"]
 "packages/effecton/src/effecton/std/process.py" = ["TID251", "PTH"]
+# HttpClient is where httpx2 is used on purpose; its tests name httpx2 defects.
+"packages/effecton/src/effecton/std/http_client.py" = ["TID251"]
+"packages/effecton/src/effecton/std/test_http_client.py" = ["TID251"]
 "packages/effecton/src/effecton/std/test_process.py" = ["TID251", "PTH"]
 # yield_now is a scheduling point, not a pause.
 "packages/effecton/src/effecton/std/fiber.py" = ["TID251"]
@@ -107,6 +110,10 @@ ignore = ["ANN204"]
 "os.readlink".msg = "Go through E.FileSystem and E.Path."
 "os.getcwd".msg = "Go through E.FileSystem and E.Path."
 "os.chdir".msg = "Go through E.FileSystem and E.Path."
+"httpx2".msg = "Go through E.HttpClient."
+"httpx".msg = "Go through E.HttpClient."
+"urllib.request".msg = "Go through E.HttpClient."
+"http.client".msg = "Go through E.HttpClient."
 
 [tool.ruff.lint.isort]
 known-first-party = ["changesets", "effecton", "skills_cli"]
