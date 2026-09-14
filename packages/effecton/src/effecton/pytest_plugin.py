@@ -8,7 +8,8 @@ an interruption like any exception. A test that requests the test_clock
 fixture has that clock provided to its effect, so E.now(), E.sleep()
 and the clock's movers all see the same clock; likewise test_random
 provides a seeded Random, so every draw through E.random() is
-reproducible.
+reproducible, and test_tracer provides a recording Tracer, so every
+span the test opens can be inspected afterwards.
 """
 
 import inspect
@@ -20,7 +21,7 @@ import pytest
 from effecton.effect import Effect
 from effecton.exit import unwrap
 from effecton.run_async import run_async_exit
-from effecton.std import clock, random
+from effecton.std import clock, random, tracer
 
 
 @pytest.fixture
@@ -33,6 +34,12 @@ def test_clock() -> clock.Test:
 def test_random() -> random.Test:
     """A Random seeded with 0, provided to the test's effect."""
     return random.Test()
+
+
+@pytest.fixture
+def test_tracer() -> tracer.Test:
+    """A recording Tracer, provided to the test's effect."""
+    return tracer.Test()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -53,6 +60,9 @@ def pytest_pyfunc_call(pyfuncitem: pytest.Function) -> bool | None:
         if "test_random" in arguments:
             seeded = cast("random.Test", arguments["test_random"])
             effect = effect.provide(random.Protocol)(seeded)
+        if "test_tracer" in arguments:
+            recording = cast("tracer.Test", arguments["test_tracer"])
+            effect = effect.provide(tracer.Protocol)(recording)
         unwrap(run_async_exit(effect))
     elif result is not None:
         warnings.warn(

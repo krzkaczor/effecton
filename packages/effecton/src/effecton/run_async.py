@@ -29,6 +29,7 @@ from effecton.run_sync import (
     OnExitFrame,
     RestoreEnv,
     default_or_die,
+    exit_of,
     run_fn_or_die,
 )
 from effecton.std import clock
@@ -179,7 +180,9 @@ async def _interpret[A, E: EffectonError](
                         case OnExitFrame(finalizer):
                             stack.append(Finalizing(outcome=current))
                             finalizing += 1
-                            current = finalizer  # ty: ignore[invalid-assignment]
+                            current = guarded(
+                                run_fn_or_die, finalizer, exit_of(current)
+                            )
                             break
                         case Finalizing(outcome):
                             finalizing -= 1
@@ -205,7 +208,9 @@ async def _interpret[A, E: EffectonError](
                         case OnExitFrame(finalizer):
                             stack.append(Finalizing(outcome=current))
                             finalizing += 1
-                            current = finalizer  # ty: ignore[invalid-assignment]
+                            current = guarded(
+                                run_fn_or_die, finalizer, exit_of(current)
+                            )
                             break
                         case Finalizing():
                             # The finalizer died; its defect replaces the

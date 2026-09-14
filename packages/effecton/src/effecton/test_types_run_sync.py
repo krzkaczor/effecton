@@ -89,7 +89,7 @@ def _run_sync_exit_produces_an_exit_and_run_sync_the_value() -> None:
     assert_type(
         E.run_sync_exit(chain), E.Succeeded[int] | E.Failure[ParseError | NegativeError]
     )
-    assert_type(E.run_sync_exit(E.success(1)), E.Succeeded[int] | E.Failure)
+    assert_type(E.run_sync_exit(E.success(1)), E.Succeeded[Literal[1]] | E.Failure)
 
     # run_sync produces the value; failures raise instead.
     assert_type(E.run_sync(chain), int)
@@ -109,7 +109,7 @@ def _cause_has_three_states_and_only_fail_carries_the_typed_error() -> None:
 def _sync_value_inferred_from_the_thunk_error_channel_stays_never() -> None:
     assert_type(E.sync(lambda: 1), E.Effect[Literal[1]])
     assert_type(E.sync(lambda: "1").flat_map(parse), E.Effect[int, ParseError])
-    assert_type(E.run_sync_exit(E.sync(lambda: 1)), E.Succeeded[int] | E.Failure)
+    assert_type(E.run_sync_exit(E.sync(lambda: 1)), E.Succeeded[Literal[1]] | E.Failure)
 
 
 def _sync_negative() -> None:
@@ -186,9 +186,30 @@ def _on_exit_preserves_all_three_channels_and_discards_the_finalizer_value() -> 
     )
 
 
+def _on_exit_accepts_a_function_receiving_the_exit() -> None:
+    def cleanup(exit: E.Exit[int, ParseError]) -> E.Effect[None]:
+        assert_type(exit, E.Succeeded[int] | E.Failure[ParseError])
+        return E.success(None)
+
+    assert_type(parse("1").on_exit(cleanup), E.Effect[int, ParseError])
+    assert_type(
+        parse("1").on_exit(lambda exit: E.success(exit)), E.Effect[int, ParseError]
+    )
+
+    # The finalizer's requirements join R, as with the effect form.
+    assert_type(
+        E.success(1).on_exit(lambda _: E.require(Db)), E.Effect[Literal[1], Never, Db]
+    )
+    assert_type(
+        E.require(Logger).on_exit(lambda _: E.require(Db)),
+        E.Effect[Logger, Never, Logger | Db],
+    )
+
+
 def _on_exit_negative() -> None:
     # The finalizer cannot have a typed error channel.
-    E.success(1).on_exit(E.fail(ParseError("x")))  # ty: ignore[invalid-argument-type]
+    E.success(1).on_exit(E.fail(ParseError("x")))  # ty: ignore[no-matching-overload]
+    E.success(1).on_exit(lambda _: E.fail(ParseError("x")))  # ty: ignore[no-matching-overload]
 
     # A finalizer requirement makes the effect unrunnable until provided.
     E.run_sync_exit(E.success(1).on_exit(E.require(Db)))  # ty: ignore[invalid-argument-type]

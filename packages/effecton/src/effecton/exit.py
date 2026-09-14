@@ -1,19 +1,25 @@
 from dataclasses import dataclass
-from typing import Any, Literal, Never, assert_never, final
+from typing import Any, Generic, Literal, Never, TypeVar, assert_never, final
 
 from effecton.effect import Cause, Die, EffectonError, Fail, Interrupt
+
+# Old-style TypeVars declare the covariance ty does not infer for a
+# generic dataclass; without it, an Exit in an Effect method signature
+# would make A and E invariant. See the ty inference notes in CLAUDE.md.
+A = TypeVar("A", covariant=True)
+E = TypeVar("E", bound=EffectonError, covariant=True, default=Never)
 
 
 @final
 @dataclass(frozen=True)
-class Succeeded[A]:
+class Succeeded(Generic[A]):  # noqa: UP046
     value: A
     kind: Literal["succeeded"] = "succeeded"
 
 
 @final
 @dataclass(frozen=True)
-class Failure[E: EffectonError = Never]:
+class Failure(Generic[E]):
     cause: Cause[E]
     kind: Literal["failure"] = "failure"
 

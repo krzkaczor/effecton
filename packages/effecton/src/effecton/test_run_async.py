@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, final
+from typing import Any, Never, final
 
 import pytest
 
@@ -511,3 +511,21 @@ def test_nested_finalizers_run_inner_to_outer_across_awaits():
 
     assert E.run_async_exit(p) == E.Succeeded(1)
     assert actions == ["inner", "outer"]
+
+
+def test_on_exit_function_receives_the_interrupt_on_cancellation():
+    seen: list[E.Exit[bool, Never]] = []
+    p = E.coroutine(asyncio.Event().wait).on_exit(
+        lambda exit: E.sync(lambda: seen.append(exit))
+    )
+
+    async def main():
+        async with asyncio.timeout(0.01):
+            return await E.run_async_coroutine(p)
+
+    match (asyncio.run(main()), seen):
+        case (E.Failure(E.Interrupt(exception)), [E.Failure(E.Interrupt(recorded))]):
+            assert isinstance(exception, asyncio.CancelledError)
+            assert recorded is exception
+        case other:
+            raise AssertionError(other)

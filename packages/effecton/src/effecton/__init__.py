@@ -33,6 +33,7 @@ from effecton.std import file_system as FileSystem
 from effecton.std import http_client as HttpClient
 from effecton.std import process as Process
 from effecton.std import random as Random
+from effecton.std import tracer as Tracer
 from effecton.std.clock import _now as now
 from effecton.std.clock import _sleep as sleep
 from effecton.std.fiber import Fiber, fork, yield_now
@@ -61,6 +62,9 @@ from effecton.std.random import _random as random
 from effecton.std.schedule import Schedule
 from effecton.std.scope import Scope, acquire_and_release, add_finalizer, scoped
 from effecton.std.timeout import TimeoutException, timeout
+from effecton.std.tracer import _annotate_current_span as annotate_current_span
+from effecton.std.tracer import _current_span as current_span
+from effecton.std.tracer import _with_span as with_span
 from effecton.suspend import suspend
 
 __all__ = [
@@ -96,13 +100,16 @@ __all__ = [
     "Severity",
     "Succeeded",
     "TimeoutException",
+    "Tracer",
     "UnhandledDefect",
     "acquire_and_release",
     "add_finalizer",
+    "annotate_current_span",
     "annotate_logs",
     "attempt",
     "attempt_async",
     "coroutine",
+    "current_span",
     "die",
     "fail",
     "fork",
@@ -133,5 +140,6 @@ __all__ = [
     "suspend",
     "sync",
     "timeout",
+    "with_span",
     "yield_now",
 ]

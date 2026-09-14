@@ -52,6 +52,13 @@ PLUGIN_TESTS = textwrap.dedent("""
         assert draw == random.Random(0).random()
 
 
+    @E.gen
+    def test_tracer_is_provided(test_tracer: E.Tracer.Test) -> E.EffectGen[None]:
+        yield from E.success(1).with_span("work")
+
+        assert [span.name for span in test_tracer.spans] == ["work"]
+
+
     def test_plain_test_still_runs():
         assert True
 """)
@@ -62,6 +69,6 @@ def test_effect_tests_are_run_and_reported(pytester: pytest.Pytester):
 
     result = pytester.runpytest("-p", "no:cacheprovider")
 
-    result.assert_outcomes(passed=4, failed=2)
+    result.assert_outcomes(passed=5, failed=2)
     result.stdout.fnmatch_lines(["*test_failing_assertion*", "*assert 1 == 2*"])
     result.stdout.fnmatch_lines(["*test_typed_failure*", "*BoomError*boom*"])

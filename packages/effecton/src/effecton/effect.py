@@ -1,16 +1,18 @@
 from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal, Never, final
+from typing import TYPE_CHECKING, Any, Literal, Never, final, overload
 
 from typing_extensions import TypeForm
 
 if TYPE_CHECKING:
     from effecton.catch import CatchBinder
+    from effecton.exit import Exit, Failure, Succeeded
     from effecton.provide import ProvideBinder
     from effecton.std.schedule import Schedule
     from effecton.std.scope import Scope
     from effecton.std.timeout import TimeoutException
+    from effecton.std.tracer import SpanKind
 
 
 @dataclass(frozen=True)
@@ -70,7 +72,32 @@ class Effect[A, E: EffectonError = Never, R = Never]:
 
         return CatchBinder(effect=self, error_type=error_type)
 
-    def on_exit[R2](self, finalizer: Effect[Any, Never, R2]) -> Effect[A, E, R | R2]:
+    @overload
+    def on_exit[R2](
+        self, finalizer: Effect[Any, Never, R2]
+    ) -> Effect[A, E, R | R2]: ...
+
+    @overload
+    def on_exit[R2](
+        # Spelled out rather than Exit[A, E]: ty infers variance through
+        # the alias as invariant, which would break covariance in A and E.
+        self,
+        finalizer: Callable[[Succeeded[A] | Failure[E]], Effect[Any, Never, R2]],
+    ) -> Effect[A, E, R | R2]: ...
+
+    def on_exit(
+        self,
+        finalizer: Effect[Any, Any, Any] | Callable[[Any], Effect[Any, Any, Any]],
+    ) -> Effect[Any, Any, Any]:
+        """Run a finalizer once this effect settles, on any outcome.
+
+        The finalizer is an effect, or a function receiving the Exit
+        (Succeeded, or Failure carrying Fail, Die or Interrupt) that
+        returns one. A finalizer that fails or raises replaces the
+        outcome with its defect.
+        """
+        if isinstance(finalizer, Effect):
+            return OnExit(self, lambda _: finalizer)
         return OnExit(self, finalizer)
 
     def provide[T](self, requirement_type: TypeForm[T]) -> ProvideBinder[A, E, R, T]:
@@ -96,6 +123,13 @@ class Effect[A, E: EffectonError = Never, R = Never]:
         from effecton.std.retry import retry
 
         return retry(self, schedule, until=until)
+
+    def with_span(
+        self, name: str, *, kind: SpanKind = "internal", **attributes: object
+    ) -> Effect[A, E, R]:
+        from effecton.std.tracer import _with_span
+
+        return _with_span(self, name, kind=kind, **attributes)
 
     def __iter__(self) -> Generator[Effect[A, E, R], Any, A]:
         """Make ``x = yield from effect`` infer ``x`` as A inside @gen.
@@ -171,7 +205,7 @@ class ProvideRequirement[A, E: EffectonError, R](Effect[A, E, R]):
 @dataclass(frozen=True)
 class OnExit[A, E: EffectonError, R](Effect[A, E, R]):
     first: Effect[Any, Any, Any]
-    finalizer: Effect[Any, Any, Any]
+    finalizer: Callable[[Exit[Any, Any]], Effect[Any, Any, Any]]
     kind: Literal["on_exit"] = "on_exit"
 
 

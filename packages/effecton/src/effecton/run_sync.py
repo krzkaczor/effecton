@@ -65,7 +65,7 @@ class RestoreEnv:
 @final
 @dataclass(frozen=True)
 class OnExitFrame:
-    finalizer: Effect[Any, Any, Any]
+    finalizer: Callable[[Exit[Any, Any]], Effect[Any, Any, Any]]
 
 
 Frame = FlatMap[Any, Any, Any] | OnFailure[Any, Any, Any] | RestoreEnv | OnExitFrame
@@ -103,7 +103,8 @@ def run_sync_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
+                            cleanup = run_fn_or_die(finalizer, exit_of(current))
+                            current = cleanup.flat_map(resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
                             current = run_fn_or_die(item.and_then, value)
@@ -123,7 +124,8 @@ def run_sync_exit[A, E: EffectonError](effect: Effect[A, E]) -> Exit[A, E]:
                         case RestoreEnv():
                             env = item.env
                         case OnExitFrame(finalizer):
-                            current = finalizer.flat_map(resume(current))  # ty: ignore[invalid-assignment]
+                            cleanup = run_fn_or_die(finalizer, exit_of(current))
+                            current = cleanup.flat_map(resume(current))  # ty: ignore[invalid-assignment]
                             break
                         case FlatMap():
                             continue
@@ -193,6 +195,15 @@ def run_fn_or_die(f: Callable[[Any], Effect[Any, Any]], value: object) -> Node:
         return f(value)  # ty: ignore[invalid-return-type]
     except Exception as e:
         return FailCause(cause=Die(defect=e))
+
+
+def exit_of(outcome: Success[Any] | FailCause[Any]) -> Exit[Any, Any]:
+    """The settled outcome as the Exit an on_exit finalizer receives."""
+    match outcome:
+        case Success(value):
+            return Succeeded(value=value)
+        case FailCause(cause):
+            return Failure(cause=cause)
 
 
 # Captures the current outcome by closure.

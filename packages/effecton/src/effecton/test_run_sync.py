@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import final
+from typing import Never, final
 
 import pytest
 
@@ -536,3 +536,54 @@ def test_on_exit_runs_on_interrupt():
 
     assert E.run_sync_exit(p) == E.Failure(cause=interrupt)
     assert actions == ["finalized"]
+
+
+def test_on_exit_function_receives_the_exit():
+    seen: list[E.Exit[int, OopsError]] = []
+    err = OopsError("boom")
+    defect = ValueError("boom")
+    interrupt = E.Interrupt(exception=KeyboardInterrupt())
+
+    def remember(exit: E.Exit[int, OopsError]) -> E.Effect[None]:
+        return E.sync(lambda: seen.append(exit))
+
+    E.run_sync_exit(E.success(1).on_exit(remember))
+    E.run_sync_exit(E.fail(err).on_exit(remember))
+    E.run_sync_exit(E.die(defect).on_exit(remember))
+    E.run_sync_exit(FailCause(cause=interrupt).on_exit(remember))
+
+    assert seen == [
+        E.Succeeded(1),
+        E.Failure(cause=E.Fail(err)),
+        E.Failure(cause=E.Die(defect)),
+        E.Failure(cause=interrupt),
+    ]
+
+
+def test_on_exit_function_leaves_the_outcome_alone():
+    p = E.fail(OopsError("boom")).on_exit(lambda _: E.success("ignored"))
+
+    assert E.run_sync_exit(p) == E.Failure(cause=E.Fail(OopsError("boom")))
+
+
+def test_on_exit_function_that_raises_becomes_a_defect():
+    boom = ValueError("boom")
+
+    def explode(exit: E.Exit[int, Never]) -> E.Effect[None]:
+        raise boom
+
+    assert E.run_sync_exit(E.success(1).on_exit(explode)) == E.Failure(
+        cause=E.Die(defect=boom)
+    )
+
+
+def test_on_exit_function_finalizer_runs_in_the_environment():
+    seen: list[tuple[str, E.Exit[int, Never]]] = []
+    p = E.success(1).on_exit(
+        lambda exit: E.require(str).map(lambda s: seen.append((s, exit)))
+    )
+
+    result = E.run_sync(p.provide(str)("env"))
+
+    assert result == 1
+    assert seen == [("env", E.Succeeded(1))]
