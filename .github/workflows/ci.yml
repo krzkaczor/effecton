@@ -32,3 +32,43 @@ jobs:
 
       - name: Test
         run: uv run ut test
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install
+
+      # ty and effecton must be importable: the docs build type-checks every
+      # Python snippet through `uv run ty server`.
+      - name: Install Python dependencies
+        run: uv sync --all-packages
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: docs/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install docs dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: docs
+
+      - name: Type check docs
+        run: pnpm typecheck
+        working-directory: docs
+
+      - name: Build docs
+        run: pnpm build
+        working-directory: docs

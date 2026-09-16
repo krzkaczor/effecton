@@ -218,3 +218,15 @@ def test_test_clock_cancelled_sleep_is_forgotten(
             assert isinstance(exception, asyncio.CancelledError)
         case other:
             raise AssertionError(other)
+
+
+@E.gen
+def test_sleep_takes_the_duration_as_parts(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    fiber = yield from E.fork(E.sleep(minutes=1).provide(E.Clock.Protocol)(test_clock))
+
+    yield from test_clock.adjust(timedelta(minutes=1))
+    result = yield from fiber.wait()
+
+    assert result == E.Succeeded(None)

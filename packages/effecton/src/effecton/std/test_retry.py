@@ -62,6 +62,66 @@ def test_recurs_zero_runs_the_effect_once():
     assert flaky.attempts == 1
 
 
+def test_times_caps_the_retries_without_a_schedule():
+    flaky = Flaky(succeed_on=None)
+    program = flaky.run().retry(times=3)
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(4)))
+    assert flaky.attempts == 4
+
+
+def test_times_zero_runs_the_effect_once():
+    flaky = Flaky(succeed_on=None)
+    program = flaky.run().retry(times=0)
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(1)))
+    assert flaky.attempts == 1
+
+
+def test_times_caps_a_schedule_with_more_steps():
+    flaky = Flaky(succeed_on=None)
+    program = flaky.run().retry(E.Schedule.recurs(5), times=2)
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(3)))
+    assert flaky.attempts == 3
+
+
+def test_times_beyond_the_schedule_keeps_the_shorter_schedule():
+    flaky = Flaky(succeed_on=None)
+    program = flaky.run().retry(E.Schedule.recurs(2), times=5)
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(3)))
+    assert flaky.attempts == 3
+
+
+def test_retry_without_a_schedule_recurs_until_the_effect_succeeds():
+    flaky = Flaky(succeed_on=5)
+    program = flaky.run().retry()
+
+    result = E.run_sync(program)
+
+    assert result == "ok"
+    assert flaky.attempts == 5
+
+
+def test_until_alone_stops_an_unbounded_retry_with_the_matched_error():
+    flaky = Flaky(succeed_on=None)
+    program = flaky.run().retry(until=lambda e: e.attempt == 4)
+
+    result = E.run_sync_exit(program)
+
+    assert result == E.Failure(E.Fail(Boom(4)))
+    assert flaky.attempts == 4
+
+
 def test_until_stops_retrying_with_the_matched_error():
     flaky = Flaky(succeed_on=None)
     program = flaky.run().retry(E.Schedule.recurs(5), until=lambda e: e.attempt == 2)
@@ -202,6 +262,28 @@ def test_exponential_grows_the_delay_between_attempts(
 
     assert attempts == [2, 3, 4]
     assert result == E.Succeeded("ok")
+
+
+@E.gen
+def test_times_caps_an_exponential_backoff(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    flaky = Flaky(succeed_on=None)
+    program = (
+        flaky.run()
+        .retry(E.Schedule.exponential(ONE_SECOND), times=2)
+        .provide(E.Clock.Protocol)(test_clock)
+    )
+    fiber = yield from E.fork(program)
+
+    attempts: list[int] = []
+    for gap in (1, 2):
+        yield from test_clock.adjust(timedelta(seconds=gap))
+        attempts.append(flaky.attempts)
+    result = yield from fiber.wait()
+
+    assert attempts == [2, 3]
+    assert result == E.Failure(E.Fail(Boom(3)))
 
 
 @E.gen

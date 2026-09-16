@@ -3,6 +3,8 @@ from collections.abc import Iterator
 from datetime import timedelta
 from itertools import islice
 
+import pytest
+
 import effecton as E
 
 ONE_SECOND = timedelta(seconds=1)
@@ -150,3 +152,26 @@ def test_jittered_composes_with_exponential():
     assert delays == [
         ONE_SECOND * 2**i * f for i, f in enumerate(factors(1, 3), start=0)
     ]
+
+
+def test_spaced_takes_the_delay_as_parts():
+    schedule = E.Schedule.spaced(seconds=1)
+
+    delays = run_delays(schedule, 2)
+
+    assert delays == [ONE_SECOND] * 2
+
+
+def test_exponential_takes_the_base_as_parts():
+    schedule = E.Schedule.exponential(milliseconds=100, factor=3)
+
+    delays = run_delays(schedule, 3)
+
+    assert delays == [timedelta(milliseconds=ms) for ms in (100, 300, 900)]
+
+
+def test_a_duration_needs_a_timedelta_or_parts_but_not_both():
+    with pytest.raises(TypeError):
+        E.Schedule.spaced()
+    with pytest.raises(TypeError):
+        E.Schedule.spaced(ONE_SECOND, seconds=1)

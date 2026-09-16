@@ -4,16 +4,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import wraps
-from typing import Any, final, overload
+from typing import Any, Unpack, final, overload
 
 from effecton.effect import Effect, EffectonError, fail
 from effecton.std.clock import _sleep
+from effecton.std.duration import Parts, resolve
 from effecton.std.race import race_first
 
 
-def timeout(duration: timedelta) -> Timeout:
-    """Bind the deadline; apply the result to an effect or a function."""
-    return Timeout(duration=duration)
+def timeout(duration: timedelta | None = None, **parts: Unpack[Parts]) -> Timeout:
+    """Bind the deadline, a timedelta or its parts (seconds=...); apply the
+    result to an effect or a function."""
+    return Timeout(duration=resolve(duration, parts))
 
 
 @final

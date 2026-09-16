@@ -54,6 +54,10 @@ def _retry_keeps_a_e_and_r() -> None:
 
     assert_type(parse("1").retry(recurs), E.Effect[int, ParseError])
     assert_type(parse("1").retry(recurs, until=is_empty), E.Effect[int, ParseError])
+    assert_type(parse("1").retry(times=3), E.Effect[int, ParseError])
+    assert_type(parse("1").retry(recurs, times=3), E.Effect[int, ParseError])
+    assert_type(parse("1").retry(until=is_empty), E.Effect[int, ParseError])
+    assert_type(parse("1").retry(), E.Effect[int, ParseError])
     assert_type(E.require(Db).retry(recurs), E.Effect[Db, Never, Db])
     assert_type(E.success(1).retry(recurs), E.Effect[Literal[1]])
 
@@ -82,8 +86,10 @@ def _schedules() -> None:
 def _retry_negative() -> None:
     recurs = E.Schedule.recurs(3)
 
-    # The schedule is a Schedule, not a count.
+    # The schedule is a Schedule, not a count; the count is the keyword times.
     E.success(1).retry(3)  # ty: ignore[invalid-argument-type]
+    parse("1").retry(recurs, 3)  # ty: ignore[too-many-positional-arguments]
+    parse("1").retry(times="3")  # ty: ignore[invalid-argument-type]
 
     # Delays are timedelta values, counts are ints.
     E.Schedule.spaced(1)  # ty: ignore[invalid-argument-type]
@@ -113,3 +119,9 @@ def _retry_negative() -> None:
     # Schedules are leaves: Schedule cannot be subclassed.
     class Custom(E.Schedule):  # ty: ignore[subclass-of-final-class]
         pass
+
+
+def _schedules_take_their_delay_as_parts() -> None:
+    assert_type(E.Schedule.spaced(seconds=1), E.Schedule)
+    assert_type(E.Schedule.exponential(milliseconds=100), E.Schedule)
+    E.Schedule.spaced(seconds="1")  # ty: ignore[invalid-argument-type]

@@ -11,10 +11,11 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import timedelta
 from itertools import count, repeat
-from typing import final
+from typing import Unpack, final
 
 from effecton.effect import Effect, success
 from effecton.gen import EffectGen, gen
+from effecton.std.duration import Parts, resolve
 from effecton.std.random import _random
 
 
@@ -41,14 +42,21 @@ class Schedule:
         return Schedule(lambda: repeat(success(timedelta(0)), times))
 
     @staticmethod
-    def spaced(delay: timedelta) -> Schedule:
-        """Recur forever, waiting delay before each attempt."""
-        return Schedule(lambda: repeat(success(delay)))
+    def spaced(delay: timedelta | None = None, **parts: Unpack[Parts]) -> Schedule:
+        """Recur forever, waiting a timedelta or its parts (seconds=...) each time."""
+        wait = resolve(delay, parts)
+        return Schedule(lambda: repeat(success(wait)))
 
     @staticmethod
-    def exponential(base: timedelta, factor: float = 2.0) -> Schedule:
-        """Recur forever, waiting base, then base * factor, and so on."""
-        return Schedule(lambda: (success(base * factor**i) for i in count()))
+    def exponential(
+        base: timedelta | None = None, factor: float = 2.0, **parts: Unpack[Parts]
+    ) -> Schedule:
+        """Recur forever, waiting base, then base * factor, and so on.
+
+        base is a timedelta or its parts: exponential(seconds=0.1).
+        """
+        first = resolve(base, parts)
+        return Schedule(lambda: (success(first * factor**i) for i in count()))
 
     def jittered(self, *, min: float = 0.8, max: float = 1.2) -> Schedule:
         """Scale each delay by a factor drawn uniformly from [min, max].

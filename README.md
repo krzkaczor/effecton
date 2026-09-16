@@ -650,10 +650,12 @@ More examples: [`test_timeout.py`](https://github.com/krzkaczor/effecton/blob/ma
 
 ### Retries
 
-`effect.retry(schedule, until=...)` re-runs an effect on a typed failure while the schedule recurs, sleeping through the Clock for each delay. Defects and interrupts are never retried. When the schedule is exhausted, or `until` holds for the error, the retry fails with that last error, so the error channel is unchanged.
+`effect.retry(schedule=None, times=None, until=...)` re-runs an effect on a typed failure while the schedule recurs, sleeping through the Clock for each delay. `times` caps the retries at that many more attempts; `retry(times=3)` alone retries up to three times without waiting, and `retry()` with neither recurs forever. Defects and interrupts are never retried. When the schedule is exhausted, `times` is used up, or `until` holds for the error, the retry fails with that last error, so the error channel is unchanged.
 
 ```python
-fetch_total().retry(E.Schedule.recurs(3))  # Effect[int, FetchError]
+fetch_total().retry(times=3)  # Effect[int, FetchError]
+
+fetch_total().retry(E.Schedule.exponential(timedelta(seconds=1)), times=5)
 
 fetch_user(1).retry(
     E.Schedule.exponential(timedelta(seconds=1)),
@@ -661,7 +663,7 @@ fetch_user(1).retry(
 )  # Effect[User, FetchError | NotFound]
 ```
 
-`E.Schedule.recurs(times)` recurs up to `times` more times without waiting, `E.Schedule.spaced(delay)` waits `delay` before every attempt, and `E.Schedule.exponential(base, factor=2.0)` waits `base`, then `base * factor`, and so on. The last two are unbounded; bound them with `until`. `schedule.jittered(min=0.8, max=1.2)` scales every delay by a factor drawn uniformly from `[min, max]` through the `E.Random` service, so `E.Random.Test(seed)` makes the jitter reproducible. Every run of the retried effect starts its schedule over.
+`E.Schedule.recurs(times)` recurs up to `times` more times without waiting, `E.Schedule.spaced(delay)` waits `delay` before every attempt, and `E.Schedule.exponential(base, factor=2.0)` waits `base`, then `base * factor`, and so on. The last two are unbounded; bound them with `times=` or `until`. `schedule.jittered(min=0.8, max=1.2)` scales every delay by a factor drawn uniformly from `[min, max]` through the `E.Random` service, so `E.Random.Test(seed)` makes the jitter reproducible. Every run of the retried effect starts its schedule over.
 
 ```python
 fetch_user(1).retry(E.Schedule.exponential(timedelta(seconds=1)).jittered())

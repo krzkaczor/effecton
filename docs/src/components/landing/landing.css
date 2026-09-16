@@ -1,0 +1,1037 @@
+/* Landing page styles. Every rule is nested under .landing so nothing here
+   leaks into the vocs docs shell. Values are taken verbatim from the Figma file
+   "Effecton AI" (node 1:57, version-1-effecton-landing-page); see README.md. */
+
+.landing {
+  /* vocs' blank layout still wraps the page in its padded content column.
+     Break out of it: span the viewport and cancel the column's vertical padding
+     (and the banner slot above it) so the sticky nav sits at the very top. */
+  & {
+    width: 100vw;
+    margin-inline: calc(50% - 50vw);
+    margin-top: calc(-1 * var(--vocs-spacing-banner, 0px) - var(--vocs-spacing-content-py, 0px));
+    margin-bottom: calc(-1 * var(--vocs-spacing-content-py, 0px));
+  }
+
+  & {
+    /* ---- Colour ---- */
+    --bg:              #101010; /* page / section background */
+    --bg-nav:          #020202; /* Figma's nav fill; overridden to --bg by request */
+    --surface:         #212121; /* cards, code panels */
+    --surface-subtle:  rgba(255, 255, 255, 0.03); /* input-style pills on dark */
+    --border:          #2C2C2F; /* grid + section rules on dark */
+    --border-input:    #272727;
+    --border-light:    #E1E1E1; /* grid rules on the white panel */
+  
+    --text:            #FFFFFF;
+    --text-muted:      #CBCBCB;
+    --text-dim:        #828282;
+    --text-on-light:   #1D1D1D;
+    --black:           #000000;
+  
+    --lime:            #C5FF51;
+    --lime-pale:       #F6FF7E;
+    --add-bg:          rgba(197, 255, 81, 0.07); /* added-line wash in the panels */
+    --add-bg-flash:    rgba(197, 255, 81, 0.22); /* what it flashes from on a rung change */
+  
+    /* Solid equivalents of the chip surfaces, composited over --bg so nothing
+       in the control row is see-through. */
+    --chip-bg:         #171717;
+    --chip-bg-hover:   #1F1F1F;
+    --chip-bg-on:      #222817;
+    --chip-bg-on-hover:#2B341D;
+    --chip-box:        #0B0B0B;
+    --chip-box-border: #3A3A3A;
+  
+    /* ---- Type ---- */
+    --font-serif: 'Zodiak', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --font-sans:  'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --font-mono:  ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  
+    /* Figma's "100%" line height is its auto setting; these are the ratios
+       Figma actually rendered (box height ÷ font size). */
+    --lh-serif: 1.35;
+    --lh-sans:  1.335;
+  
+    /* ---- Layout ---- */
+    --page:    1440px; /* artboard width */
+    --content: 1280px; /* bordered content column */
+    --gutter:  80px;   /* artboard → content column */
+    --pad:     32px;   /* content column → text */
+    --radius:  8px;
+  }
+  
+  /* ---- Reset ---- */
+  *, *::before, *::after { box-sizing: border-box; }
+  
+  
+  & {
+    min-height: 100vh;
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: var(--lh-sans);
+    letter-spacing: -0.01em; /* Figma: -1% on all Satoshi text */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, p { margin: 0; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  a { color: inherit; }
+  img, svg { display: block; max-width: 100%; }
+  /* vocs styles every <code> as an inline chip (padding, background); the
+     panels, the lime bar and the card copy set their own. */
+  code { padding: 0; background: none; border: 0; border-radius: 0; }
+  
+  :focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  
+  /* ==========================================================================
+     Shared scaffolding
+     ========================================================================== */
+  
+  /* Every section is full-bleed dark; the content column sits inside it and
+     carries the 1px rule that frames the whole page. */
+  .section { background: var(--bg); }
+  
+  .container {
+    max-width: var(--content);
+    margin-inline: auto;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  
+  /* Stacked content columns share one rule instead of doubling it, which is how
+     the contiguous frames read in Figma. */
+  .hero__inner,
+  main > .section > .container,
+  .closing > .closing__inner,
+  .footer > .container { margin-top: -1px; }
+  
+  /* The 6-column vertical rule overlay (Figma: lines at 213 / 426 / 639 / 852 / 1065). */
+  .container--ruled > .rules {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    pointer-events: none;
+  }
+  .container--ruled > .rules span { border-right: 1px solid var(--border); }
+  .container--ruled > .rules span:last-child { border-right: 0; }
+  
+  .section-inner { position: relative; padding-inline: var(--pad); }
+  
+  /* ---- Headings ---- */
+  .h-serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 40px;
+    line-height: var(--lh-serif);
+    letter-spacing: 0;
+    color: var(--text);
+  }
+  
+  .eyebrow {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    color: var(--text-muted);
+  }
+  .eyebrow--lime { color: var(--lime); }
+  
+  /* ---- Buttons & the install pill ---- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 56px;
+    padding-inline: 24px;
+    border: 0;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 120ms ease, opacity 120ms ease, background-color 120ms ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  
+  .btn--light { background: #FFFFFF; color: var(--text-on-light); }
+  .btn--light:hover { background: #F0F0F0; }
+  .btn--dark { background: var(--bg); color: var(--text); }
+  .btn--dark:hover { background: #1E1E1E; }
+  
+  .btn--ghost {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-input);
+    color: var(--text);
+  }
+  .btn--ghost:hover { background: rgba(255, 255, 255, 0.06); border-color: #3A3A3A; }
+  .btn svg { width: 16px; height: 16px; }
+  
+  .cta-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    flex-wrap: wrap;
+  }
+  
+  /* ==========================================================================
+     Navigation — Figma 1:3 (72px, #020202)
+     ========================================================================== */
+  
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 72px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .nav__inner {
+    height: 100%;
+    max-width: var(--page);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    display: grid;
+    grid-template-columns: auto 1fr auto; /* mark, links, actions: links sit left */
+    align-items: center;
+    gap: 24px;
+  }
+  
+  .nav__mark { width: 22px; height: 25px; color: var(--text); }
+  
+  .nav__links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 18px;
+    font-weight: 500;
+  }
+  .nav__links a { text-decoration: none; opacity: 1; transition: opacity 120ms ease; }
+  .nav__links a:hover { opacity: 0.7; }
+  
+  .nav__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 11px;
+  }
+  
+  /* X and Discord as 40px icon buttons; the footer reuses them at 32px. */
+  .social {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .social__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+  .social__link svg { width: 18px; height: 18px; }
+  .social__link:hover { color: var(--text); background: var(--surface); }
+  .nav__social { margin-right: 4px; }
+  .footer__social { margin-left: 8px; }
+  .footer__social .social__link { width: 32px; height: 32px; }
+  .footer__social .social__link svg { width: 16px; height: 16px; }
+  
+  /* ==========================================================================
+     Hero — Figma 1:32 (571px tall incl. nav)
+     ========================================================================== */
+  
+  .hero { background: var(--bg); }
+  
+  .hero__inner {
+    max-width: var(--content);
+    margin-inline: auto;
+    border: 1px solid var(--border);
+    min-height: 500px;
+    padding: 101px var(--pad) 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Stands in for the faint dot field behind the hero in the Figma file. Even
+     across the whole frame — no vignette. This is the no-JS baseline; app.js
+     swaps in the canvas field (same pitch and brightness) and hides this. */
+  .hero__inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+    background-size: 16px 16px;
+    pointer-events: none;
+  }
+  .hero__inner.has-dots::before { display: none; }
+  
+  /* The canvas field: uniform dots, a faint connected-dot "E", cursor glow. */
+  .hero__dots {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .hero__badge, .hero__title, .hero__sub, .hero .cta-row { position: relative; z-index: 1; }
+  
+  .hero__badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
+  }
+  /* 128 × 22 keeps the wordmark's 5.84:1 box (Figma drew it at 70 × 12); the
+     flex row centres it on the 24px tag beside it. */
+  .hero__wordmark { width: 128px; height: 22px; color: var(--lime); }
+  
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--lime);
+  }
+  
+  .hero__title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 64px;
+    line-height: var(--lh-serif);
+    letter-spacing: 0;
+    margin-top: 10px;
+  }
+  
+  /* Figma applies a radial gradient (#C5FF51 → #F6FF7E) to the headline's
+     last word; every rotating word carries it. */
+  .hero__title em {
+    font-style: normal;
+    background: radial-gradient(circle at 50% 50%, var(--lime) 0%, var(--lime-pale) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* The rotating word. An invisible sizer holds the first word's width; the
+     words sit absolutely over it, the incoming one sliding up into place
+     while the outgoing one leaves upward. clip-path (not overflow) does the
+     vertical clipping so a word wider than the box is never cut. RotatingWord
+     sets the width: on large screens once, so "Python optimized for" never
+     moves; below 1260px (`is-fluid`) per word, eased, so the centred line
+     re-centres with each word. */
+  .hero__title .rotate {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    clip-path: inset(0 -100vw 0 -0.1em);
+  }
+  .hero__title .rotate.is-fluid { transition: width 450ms cubic-bezier(0.4, 0, 0.2, 1); }
+  .hero__title .rotate__sizer { visibility: hidden; white-space: nowrap; }
+  .hero__title .rotate em {
+    position: absolute;
+    left: 0;
+    top: 0;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(0.7em);
+    transition: opacity 350ms ease, transform 450ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .hero__title .rotate em.is-out { transform: translateY(-0.7em); }
+  .hero__title .rotate em.is-on { opacity: 1; transform: none; }
+  
+  .hero__sub {
+    margin-top: 10px;
+    max-width: 560px; /* Figma text box is 510px; a little slack keeps it to one line */
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  
+  .hero .cta-row { margin-top: 24px; justify-content: center; }
+  
+  /* ---- "Copy instructions for agent", after vocs.dev ---- */
+  
+  .hero .prompt { position: relative; z-index: 1; }
+  /* A step quieter than the buttons above it; hovering brings it up. */
+  .prompt {
+    width: min(100%, 520px);
+    margin-top: 12px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius);
+    background: var(--surface-subtle);
+    text-align: left;
+    opacity: 0.8;
+    transition: opacity 120ms ease;
+  }
+  .prompt:hover, .prompt:focus-within { opacity: 1; }
+  .prompt__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 48px;
+    padding: 0 8px 0 14px;
+  }
+  .prompt__copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text-muted);
+    text-align: left; /* the hero centres text; a wrapped label on phones stays ragged-right */
+    cursor: pointer;
+    transition: color 120ms ease;
+  }
+  .prompt__copy svg { flex: none; width: 16px; height: 16px; color: var(--lime); }
+  .prompt__copy:hover { color: var(--text); }
+  .prompt__copy.is-copied { color: var(--lime); }
+  .prompt__actions { display: flex; align-items: center; gap: 2px; }
+  .prompt__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+  .prompt__action svg { width: 16px; height: 16px; }
+  .prompt__action:hover, .prompt__action.is-on { color: var(--text); background: var(--surface); }
+  .prompt__text {
+    margin: 0;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border-input);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+  
+  /* On the lime closing band: white, like the light button beside it. */
+  .prompt--light { background: #FFFFFF; border-color: rgba(0, 0, 0, 0.12); }
+  .prompt--light .prompt__copy { color: rgba(0, 0, 0, 0.7); }
+  .prompt--light .prompt__copy:hover { color: var(--black); }
+  .prompt--light .prompt__copy svg { color: #4A8422; }
+  .prompt--light .prompt__copy.is-copied { color: #4A8422; }
+  .prompt--light .prompt__action { color: rgba(0, 0, 0, 0.55); }
+  .prompt--light .prompt__action:hover, .prompt--light .prompt__action.is-on { color: var(--black); background: rgba(0, 0, 0, 0.06); }
+  .prompt--light .prompt__text { border-color: rgba(0, 0, 0, 0.12); color: rgba(0, 0, 0, 0.7); }
+  
+  /* ==========================================================================
+     Comparison — Figma 1:60
+     ========================================================================== */
+  
+  .compare .section-inner { padding-block: 48px; }
+  
+  /* ---- Guarantee toggles ---- */
+  
+  /* The phone-only panel; the 620px rule swaps it in for the ladder. */
+  .compare__mobile { display: none; }
+
+  .compare__controls {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .compare__controls-label {
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+  
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  
+  .chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding-inline: 14px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius);
+    background: var(--chip-bg);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+  }
+  .chip:hover {
+    border-color: var(--chip-box-border);
+    background: var(--chip-bg-hover);
+    color: var(--text);
+  }
+  
+  /* The real checkbox stays in the accessibility tree and keeps keyboard use. */
+  .chip input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+  .chip:has(input:focus-visible) { outline: 2px solid var(--lime); outline-offset: 2px; }
+  
+  /* An empty box is what tells the visitor an unselected chip is clickable. */
+  .chip__box {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--chip-box-border);
+    border-radius: 4px;
+    background: var(--chip-box);
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .chip__box svg {
+    width: 10px;
+    height: 10px;
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;              /* kept in flow so ticking it shifts nothing */
+    transition: opacity 120ms ease;
+  }
+  .chip:hover .chip__box { border-color: #4A4A4A; }
+  
+  .chip.is-on {
+    border-color: var(--lime);
+    background: var(--chip-bg-on);
+    color: var(--lime);
+  }
+  .chip.is-on:hover { background: var(--chip-bg-on-hover); color: var(--lime); }
+  .chip.is-on .chip__box,
+  .chip.is-on:hover .chip__box { background: var(--lime); border-color: var(--lime); }
+  .chip.is-on .chip__box svg { opacity: 1; }
+  
+  /* ---- Panels ---- */
+  
+  .compare__grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 66px;
+    /* Each panel sizes to its own content: the height difference is the point. */
+    align-items: start;
+  }
+  
+  /* min-width: 0 keeps a long code line from widening its grid column; the
+     panel scrolls instead. */
+  .compare__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  
+  .compare__col .eyebrow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .loc {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .loc__delta { margin-left: 8px; color: var(--lime); }
+  
+  .code {
+    background: var(--surface);
+    border-radius: var(--radius);
+    min-height: 418px;
+    margin: 0;
+    padding: 20px; /* 20px, not the Figma 24px: buys the 68th character of a code line */
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    letter-spacing: 0;
+    color: #E4E4E4;
+    tab-size: 4;
+  }
+  .code code { display: block; font: inherit; }
+
+  /* Every line is a .ln; the ones the current rung added carry .is-add and a
+     lime wash that runs edge to edge across the panel's 20px padding. The
+     <pre> is keyed on its source, so the wash replays on every rung change. */
+  .code .ln {
+    display: inline-block;
+    box-sizing: border-box;
+    min-width: calc(100% + 40px); /* min, not width: a line wider than the panel keeps its wash */
+    min-height: 1.5em;
+    margin-inline: -20px;
+    padding-inline: 20px;
+    vertical-align: top;
+  }
+  .code .ln.is-add {
+    background: var(--add-bg);
+    box-shadow: inset 2px 0 0 var(--lime);
+    animation: ln-add 1.2s ease-out;
+  }
+  /* Minimal, restrained syntax colouring drawn from the page's own palette. */
+  .code .k { color: #C58CFF; }           /* keyword */
+  .code .n { color: var(--lime); }        /* name being defined */
+  .code .d { color: #7FD4FF; }           /* decorator */
+  .code .s { color: #F6FF7E; }           /* string */
+  .code .t { color: #9FE6C0; }           /* type */
+  .code .c { color: #6E6E6E; font-style: italic; } /* comment */
+
+  /* Type hovers on the with-Effecton panel. ty computes the types at build
+     time (LandingPage.tsx); the spans carry an index into the text table and
+     the panel shows one popup, outside the scrolling <pre> so overflow cannot
+     clip it. The classes are deliberately not twoslash-*: vocs styles those
+     globally. */
+  .code .hv { border-bottom: 1px dotted transparent; }
+  .code:hover .hv { border-color: #4A4A4A; }
+  .code .hv:hover { border-color: var(--lime); }
+
+  .compare__col { position: relative; }
+
+  .hv-pop {
+    position: absolute;
+    z-index: 20;
+    max-width: 520px;
+    padding: 8px 10px;
+    background: #1A1A1A;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: #E4E4E4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+  }
+  .hv-pop .k { color: #C58CFF; }
+  .hv-pop .n { color: var(--lime); }
+  .hv-pop .d { color: #7FD4FF; }
+  .hv-pop .s { color: #F6FF7E; }
+  .hv-pop .t { color: #9FE6C0; }
+  
+  /* ==========================================================================
+     Building blocks — Figma 1:72
+     ========================================================================== */
+  
+  .blocks .section-inner { padding-block: 55px 55px; }
+  
+  .blocks__grid {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 66px;
+    align-items: start;
+  }
+  
+  /* ---- The service cloud (left) ---- */
+  
+  /* A loose cluster: centred rows of unequal-width pills, so the ragged edges
+     read as a cloud rather than a table. */
+  .cloud {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .cloud__pill {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    line-height: 1.4;
+    transition: border-color 150ms ease, transform 150ms ease;
+  }
+  .cloud__pill:hover { border-color: var(--lime); transform: translateY(-1px); }
+  .cloud__name { font-size: 16px; font-weight: 500; color: var(--text); }
+  .cloud__note { font-size: 13px; color: var(--text-dim); transition: color 150ms ease; }
+  .cloud__pill:hover .cloud__note { color: var(--text-muted); }
+  
+  /* ---- What they add up to (right) ---- */
+  
+  .blocks__list { display: flex; flex-direction: column; }
+  /* Both columns open with a lime eyebrow on the same baseline. */
+  .blocks__cloud .eyebrow, .blocks__list .eyebrow { margin-bottom: 8px; }
+  .blocks__cloud .cloud { margin-top: 16px; }
+  
+  .blocks__item { padding: 16px 0; border-radius: var(--radius); }
+  .blocks__item h3 {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    color: var(--text);
+    margin: 0;
+  }
+  .blocks__item p {
+    margin-top: 16px;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  
+  /* ==========================================================================
+     Describe (white panel) — Figma 1:85
+     ========================================================================== */
+  
+  .describe { background: var(--bg); }
+  
+  .describe .container {
+    background: #FFFFFF;
+    border-color: var(--border);
+    overflow: hidden;
+  }
+  .describe .rules span { border-right-color: var(--border-light); }
+  
+  .describe .section-inner { padding-block: 47px 28px; }
+  
+  .describe__title { color: var(--black); }
+  
+  .describe__bar {
+    margin-top: 30px;
+    height: 56px;
+    border-radius: var(--radius);
+    background: linear-gradient(to right, var(--lime-pale), #C5FE51);
+    display: flex;
+    align-items: center;
+    padding-inline: 24px;
+    /* One decorative line of code: still swipeable when it overflows a narrow
+       viewport, but without a permanent scrollbar across the lime bar. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .describe__bar::-webkit-scrollbar { display: none; }
+  .describe__bar .bar-many { display: none; } /* phone-only line breaks, see 620px */
+  .describe__bar code {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.4;
+    letter-spacing: 0;
+    color: var(--black);
+    white-space: nowrap;
+  }
+  
+  .describe__cards {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 65px;
+  }
+  
+  .describe__card {
+    min-height: 253px;
+    border-radius: var(--radius);
+    padding: 32px;
+    color: var(--black);
+  }
+  /* Three stops of one sweep running left → right across the row. */
+  .describe__card:nth-child(1) { background: linear-gradient(to right, #F6FF7E, #E7FE71); }
+  .describe__card:nth-child(2) { background: linear-gradient(to right, #E4FE6E, #D5FD60); }
+  .describe__card:nth-child(3) { background: linear-gradient(to right, #D4FF5F, #C5FE51); }
+  
+  .describe__card h3 {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    margin: 0;
+  }
+  .describe__card p {
+    margin-top: 16px;
+    font-size: 15px;
+    line-height: var(--lh-sans);
+    color: rgba(0, 0, 0, 0.72);
+  }
+  .describe__card p code {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--black);
+  }
+
+  /* The signature bar and the cards sit on lime, so the channels are three
+     mid-tone inks at a similar lightness (green, red, blue) that read as one
+     family against the black text around them. Each channel keeps its tone
+     from the bar to the label on its card. */
+  .describe__bar .k { color: rgba(0, 0, 0, 0.55); }
+  .describe__bar .n { font-weight: 600; }
+  .describe__bar .ch { font-weight: 600; }
+  .describe .ch--success { color: #4A8422; }
+  .describe .ch--error { color: #AD3939; }
+  .describe .ch--requirements { color: #4B69AE; }
+
+  .describe__card .describe__channel {
+    margin: 0 0 10px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  
+  /* ==========================================================================
+     AI-era — Figma 1:97
+     ========================================================================== */
+  
+  .ai .section-inner { padding-block: 54px 72px; }
+  
+  .ai__cards {
+    margin-top: 29px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 65px;
+  }
+  .ai__card a { text-decoration: underline; text-underline-offset: 2px; }
+  .ai__card a:hover { color: var(--lime); }
+  
+  .ai__card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    min-height: 199px;
+    padding: 32px;
+  }
+  .ai__card h3 {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: var(--lh-sans);
+    margin: 0;
+  }
+  .ai__card p {
+    margin-top: 16px;
+    max-width: 511px;
+    font-size: 15px;
+    color: var(--text-muted);
+  }
+  
+  /* ==========================================================================
+     Closing band — Figma 1:106
+     ========================================================================== */
+  
+  .closing { background: var(--bg); }
+  
+  .closing__inner {
+    max-width: var(--content);
+    margin-inline: auto;
+    border: 1px solid var(--border);
+    min-height: 320px;
+    padding: 96px var(--pad);
+    background: linear-gradient(to right, var(--lime-pale), var(--lime));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 19px;
+    text-align: center;
+  }
+  
+  .closing__title { color: var(--black); }
+  
+  /* ==========================================================================
+     Footer — Figma 1:117
+     ========================================================================== */
+  
+  .footer { background: var(--bg); }
+  
+  .footer .section-inner {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .footer__links { margin-left: auto; } /* links and social icons group on the right */
+  
+  .footer__wordmark { width: 117px; height: 20px; color: var(--text); }
+  
+  .footer__links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .footer__links a {
+    color: var(--text-muted);
+    opacity: 0.8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: opacity 120ms ease;
+  }
+  .footer__links a:hover { opacity: 1; }
+  
+  /* ==========================================================================
+     Responsive — the Figma file is a fixed 1440 artboard, so everything below
+     is an extrapolation that keeps the desktop rendering pixel-accurate.
+     ========================================================================== */
+  
+  @media (max-width: 1440px) {
+    & { --gutter: clamp(16px, 5.5vw, 80px); }
+    .container,
+    .hero__inner,
+    .closing__inner { margin-inline: var(--gutter); max-width: none; }
+    .nav__inner { max-width: none; }
+  }
+  
+  /* Laptop widths. The 68-column code lines need ~534px per panel at 12px, so
+     the gutter and the gap shrink first; below 1260px the panels stack. */
+  @media (max-width: 1360px) {
+    & { --gutter: clamp(16px, 5.5vw, 48px); } /* same clamp as above, lower cap */
+    .compare__grid { gap: 32px; }
+    .code { font-size: 12px; }
+  }
+  
+  @media (max-width: 1259px) {
+    .compare__grid { grid-template-columns: 1fr; }
+    .code { font-size: 13px; min-height: 0; } /* stacked: no floor, the height gap is gone anyway */
+  }
+  
+  @media (max-width: 1100px) {
+    .blocks__grid { gap: 32px; }
+    .describe__bar code { font-size: 14px; }
+    .describe__cards,
+    .ai__cards { gap: 24px; }
+    .container--ruled > .rules { grid-template-columns: repeat(3, 1fr); }
+  }
+  
+  @media (max-width: 900px) {
+    & { --pad: 24px; }
+  
+    .hero__inner { padding-top: 64px; padding-bottom: 56px; min-height: 0; }
+    .hero__title { font-size: clamp(38px, 7.2vw, 64px); }
+    .hero__sub { font-size: 18px; }
+  
+    .h-serif { font-size: clamp(28px, 4.4vw, 40px); }
+  
+    .compare__grid,
+    .blocks__grid,
+    .ai__cards,
+    .describe__cards { grid-template-columns: 1fr; }
+  
+    .cloud { justify-content: flex-start; }
+    .ai__card, .describe__card { min-height: 0; }
+    .code { min-height: 0; max-height: 420px; }
+  
+    .closing__inner { padding: 56px 24px; }
+    .container--ruled > .rules { display: none; }
+  }
+  
+  @media (max-width: 620px) {
+    .cloud__pill--wide { display: none; } /* six pills, see PHONE_HIDDEN */
+    .nav__inner { gap: 16px; }
+    .nav__links { gap: 20px; font-size: 16px; }
+  
+    /* The ladder's 68-column panels can't fit a phone, so the section shows
+       one short program instead, edge to edge: the container loses its side
+       rules and gutter and the panel its radius, and only the title and the
+       eyebrow keep the text inset. 16px panel padding leaves 343px for code,
+       enough for the snippet's 46 columns at 12px. */
+    .compare__desktop { display: none; }
+    .compare__mobile { display: block; margin-top: 24px; }
+    .compare > .container { margin-inline: 0; border-inline: 0; }
+    .compare .section-inner { padding-inline: 0; }
+    .compare__title, .compare__mobile .eyebrow { padding-inline: var(--pad); }
+    .compare__mobile .code {
+      border-radius: 0;
+      max-height: none;
+      min-height: 0;
+      font-size: 12px; /* 46 columns in 343px */
+      padding-inline: 16px;
+    }
+    .compare__mobile .ln {
+      min-width: calc(100% + 32px);
+      margin-inline: -16px;
+      padding-inline: 16px;
+    }
+  
+    /* The signature no longer fits on one line: break it the way ruff would
+       (one parameter per line, trailing commas) rather than hide half of it
+       behind a scroll nobody discovers. The line breaks come from the
+       .bar-many spans; the one-line spaces (.bar-one) go. */
+    .describe__bar { height: auto; padding: 14px 16px; }
+    .describe__bar code { white-space: pre; line-height: 1.6; font-size: 13px; } /* 31 columns in 252px */
+    .describe__bar .bar-one { display: none; }
+    .describe__bar .bar-many { display: inline; }
+  
+    .footer .section-inner {
+      height: auto;
+      padding-block: 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .footer__links { margin-left: 0; }
+    .footer__social { margin-left: -8px; } /* icons' padding lines the glyphs up with the text */
+  
+    .cta-row { width: 100%; flex-direction: column; align-items: stretch; }
+    .cta-row .btn { width: 100%; justify-content: center; }
+    .prompt__row { height: auto; min-height: 48px; padding-block: 8px; } /* label may wrap */
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    .btn:hover { transform: none; }
+  }
+}
+
+/* Keyframes cannot nest inside a style rule (lightningcss rejects it), so the
+   .ln.is-add wash animation lives at the top level. */
+@keyframes ln-add {
+  from { background-color: var(--add-bg-flash); }
+  to { background-color: var(--add-bg); }
+}

@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal, Never, final, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Unpack, final, overload
 
 from typing_extensions import TypeForm
 
@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from effecton.catch import CatchBinder
     from effecton.exit import Exit, Failure, Succeeded
     from effecton.provide import ProvideBinder
+    from effecton.std.duration import Parts
     from effecton.std.schedule import Schedule
     from effecton.std.scope import Scope
     from effecton.std.timeout import TimeoutException
@@ -112,17 +113,25 @@ class Effect[A, E: EffectonError = Never, R = Never]:
 
         return scoped(self)
 
-    def timeout(self, duration: timedelta) -> Effect[A, E | TimeoutException, R]:
+    def timeout(
+        self, duration: timedelta | None = None, **parts: Unpack[Parts]
+    ) -> Effect[A, E | TimeoutException, R]:
+        """Fail with TimeoutException after a timedelta or its parts (seconds=...)."""
         from effecton.std.timeout import timeout
 
-        return timeout(duration)(self)
+        return timeout(duration, **parts)(self)
 
     def retry(
-        self, schedule: Schedule, *, until: Callable[[E], bool] | None = None
+        self,
+        schedule: Schedule | None = None,
+        *,
+        times: int | None = None,
+        until: Callable[[E], bool] | None = None,
     ) -> Effect[A, E, R]:
+        """Re-run on failure while the schedule recurs, at most times more times."""
         from effecton.std.retry import retry
 
-        return retry(self, schedule, until=until)
+        return retry(self, schedule, times=times, until=until)
 
     def with_span(
         self, name: str, *, kind: SpanKind = "internal", **attributes: object

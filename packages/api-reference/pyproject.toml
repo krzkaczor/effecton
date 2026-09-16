@@ -1,0 +1,36 @@
+[project]
+name = "api-reference"
+version = "0.1.0"
+description = "Renders the docs API reference page from the effecton sources, built on effecton"
+requires-python = ">=3.14"
+dependencies = [
+    "effecton",
+    "griffe>=2.3",
+    "typer>=0.15",
+]
+classifiers = ["Private :: Do Not Upload"]
+
+[project.scripts]
+api-reference = "api_reference.cli:run"
+
+[tool.uv.sources]
+effecton = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/api_reference"]
+
+[tool.ut.tasks]
+test = "pytest"
+typecheck = "ty check ."
+
+[tool.ty.rules]
+unused-ignore-comment = "error"
+
+[tool.pytest.ini_options]
+testpaths = ["src"]
+addopts = "-q"
+collect_imported_tests = false

@@ -1,6 +1,6 @@
 # effecton agent guide
 
-effecton is a typed effect system for Python inspired by Effect-TS: sync-only, runtime dependencies limited to typing-extensions, aiofiles and httpx2, Python 3.14, typechecked with ty. Kernel modules live in `packages/effecton/src/effecton/`, std services in `packages/effecton/src/effecton/std/`, and tests collocated next to the module they cover as `test_<module>.py` (the release workflow deletes every `test_*.py` under `src/` before building the published package).
+effecton is a typed effect system for Python inspired by Effect-TS: sync-only, runtime dependencies limited to typing-extensions, aiofiles and httpx2, Python 3.14, typechecked with ty. Kernel modules live in `packages/effecton/src/effecton/`, std services in `packages/effecton/src/effecton/std/`, and tests collocated next to the module they cover as `test_<module>.py` (the release workflow deletes every `test_*.py` under `src/` before building the published package). `packages/api-reference` renders the docs site's API Reference page from these sources with griffe (`uv run api-reference`, run by the docs build): every name exported from `effecton/__init__.py` must belong to a module listed in its `topics.TOPICS` table, or the docs build fails.
 
 ## Verification
 

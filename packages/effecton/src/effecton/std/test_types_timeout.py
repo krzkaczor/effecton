@@ -97,3 +97,14 @@ def _timeout_negative() -> None:
     # Errors are leaves: TimeoutException cannot be subclassed.
     class LongTimeout(E.TimeoutException):  # ty: ignore[subclass-of-final-class]
         pass
+
+
+def _timeout_takes_the_deadline_as_parts() -> None:
+    assert_type(
+        parse("1").timeout(seconds=1), E.Effect[int, ParseError | E.TimeoutException]
+    )
+    assert_type(
+        E.timeout(minutes=1, seconds=30)(parse("1")),
+        E.Effect[int, ParseError | E.TimeoutException],
+    )
+    parse("1").timeout(seconds="1")  # ty: ignore[invalid-argument-type]

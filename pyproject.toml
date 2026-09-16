@@ -1,8 +1,14 @@
 [tool.uv.workspace]
-members = ["packages/effecton", "packages/changesets", "packages/examples/*"]
+members = [
+    "packages/effecton",
+    "packages/changesets",
+    "packages/api-reference",
+    "packages/examples/*",
+]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.1.1",
     "ruff>=0.16.5",
     "ty>=0.0.75",
@@ -116,4 +122,4 @@ ignore = ["ANN204"]
 "http.client".msg = "Go through E.HttpClient."
 
 [tool.ruff.lint.isort]
-known-first-party = ["changesets", "effecton", "skills_cli"]
+known-first-party = ["api_reference", "changesets", "effecton", "skills_cli"]

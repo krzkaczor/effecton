@@ -36,3 +36,8 @@ def _clock_negative() -> None:
 
     # The duration is a timedelta, not a number of seconds.
     E.sleep(1)  # ty: ignore[invalid-argument-type]
+
+
+def _sleep_takes_the_duration_as_parts() -> None:
+    assert_type(E.sleep(seconds=1), E.Effect[None])
+    E.sleep(seconds="1")  # ty: ignore[invalid-argument-type]

@@ -20,10 +20,11 @@ import time
 import typing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Never, final, runtime_checkable
+from typing import Never, Unpack, final, runtime_checkable
 
 from effecton.effect import Effect, coroutine, sync
 from effecton.implicit_requirement import ImplicitRequirement, require_implicit
+from effecton.std.duration import Parts, resolve
 
 
 def _now() -> Effect[datetime]:
@@ -31,9 +32,13 @@ def _now() -> Effect[datetime]:
     return require_implicit(Protocol).flat_map(lambda clock: clock.now())
 
 
-def _sleep(duration: timedelta) -> Effect[None]:
-    """Pause for duration through the Clock; how depends on the runner."""
-    return require_implicit(Protocol).flat_map(lambda clock: clock.sleep(duration))
+def _sleep(duration: timedelta | None = None, **parts: Unpack[Parts]) -> Effect[None]:
+    """Pause through the Clock for a timedelta or its parts (seconds=...).
+
+    How the pause happens depends on the runner.
+    """
+    delay = resolve(duration, parts)
+    return require_implicit(Protocol).flat_map(lambda clock: clock.sleep(delay))
 
 
 @runtime_checkable

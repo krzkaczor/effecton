@@ -203,3 +203,29 @@ def test_a_clock_defect_passes_through_and_interrupts_the_effect():
 
     assert result == E.Failure(E.Die(defect))
     assert actions == ["finalized"]
+
+
+def test_timeout_takes_the_deadline_as_parts():
+    result = E.run_async(E.success(1).timeout(seconds=5))
+
+    assert result == 1
+
+
+@E.gen
+def test_a_deadline_given_as_parts_fails_with_that_timedelta(
+    test_clock: E.Clock.Test,
+) -> E.EffectGen[None]:
+    program = forever().timeout(seconds=5).provide(E.Clock.Protocol)(test_clock)
+    fiber = yield from E.fork(program)
+
+    yield from test_clock.adjust(FIVE_SECONDS)
+    result = yield from fiber.wait()
+
+    assert result == TIMED_OUT
+
+
+def test_timeout_needs_a_timedelta_or_parts():
+    with pytest.raises(TypeError):
+        E.timeout()
+    with pytest.raises(TypeError):
+        E.timeout(FIVE_SECONDS, seconds=5)
