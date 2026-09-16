@@ -131,6 +131,8 @@ export function createTyTwoslasher(options: TyTwoslasherOptions = {}) {
         console.warn(`[ty-twoslash] ${message}`)
       }
       for (const diagnostic of output.diagnostics) {
+        // Hints such as "`x` is unused" are editor grey-outs, not something a reader needs.
+        if (diagnostic.severity === 4) continue
         const { start, end } = diagnostic.range
         const startIndex = pc.posToIndex(start.line, start.character)
         const endIndex =

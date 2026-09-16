@@ -80,6 +80,27 @@ Three things happen here:
 - **A standard library.** Logger, `Clock`, `Random`, `FileSystem`, `Process` and `HttpClient` services, each with a live and a test implementation, plus fibers, racing, timeouts and retries.
 - **Sync and async runners.** The same effect runs under `run_sync` or `run_async`. `run_main` is the entry point for CLIs and reports failures with proper exit codes.
 
+## Motivation
+
+Effect based systems provide programmers with building blocks that might be difficult at first but yield benefits in the future. Handling edge cases and thorough testing might be optional in the prototype stage but becomes critical in production.
+
+Furthermore, *agents love* strict type systems and building blocks.
+
+effecton is inspired by [Effect-TS](https://effect.website/), [ZIO](https://zio.dev/) and stateless. For a full example, see [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
+
+## Roadmap
+
+- [x] `ty` support
+- [x] Support for async/sync code
+- [x] Retries
+- [x] Timeouts
+- [x] `Random` implicit service
+- [x] `FileSystem` service and `Path`
+- [x] `HttpClient` service
+- [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
+
 ## Where next
 
-The docs are being written. Until they cover more ground, the [README on GitHub](https://github.com/krzkaczor/effecton#readme) walks through every feature with examples, and [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli) is a small CLI built entirely on effecton services.
+- [Building effects](/core/building-effects) starts the Core section: constructing, running and composing effects, typed errors, requirements, resources and generator syntax.
+- [Logger](/std/logger) starts the Standard library section: the built-in services, each with a live and a test implementation, plus fibers, racing, timeouts and retries.
+- The [API Reference](/api) lists every exported name with its signature and docstring.

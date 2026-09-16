@@ -230,7 +230,11 @@
     justify-content: flex-end;
     gap: 11px;
   }
-  
+
+  /* The hamburger and its panel exist only on phones; see the ≤700px query. */
+  .nav__toggle { display: none; }
+  .nav__menu { display: none; }
+
   /* X and Discord as 40px icon buttons; the footer reuses them at 32px. */
   .social {
     list-style: none;
@@ -426,6 +430,11 @@
   .prompt__copy svg { flex: none; width: 16px; height: 16px; color: var(--lime); }
   .prompt__copy:hover { color: var(--text); }
   .prompt__copy.is-copied { color: var(--lime); }
+  /* Both labels share one grid cell: the long one sets the height (it wraps
+     on phones) and the short "Copied" swaps in without the row shrinking. */
+  .prompt__label { display: grid; }
+  .prompt__label > span { grid-area: 1 / 1; align-self: center; } /* "Copied" centres in the taller cell */
+  .prompt__label > .is-off { visibility: hidden; }
   .prompt__actions { display: flex; align-items: center; gap: 2px; }
   .prompt__action {
     display: inline-flex;
@@ -971,11 +980,57 @@
     .container--ruled > .rules { display: none; }
   }
   
+  /* Phones: the links and the three icons no longer fit beside the mark
+     (they need ~540px), so they fold into a panel under the bar behind a
+     hamburger. Keep the breakpoint in step with NAV_MENU_MAX in Landing.tsx. */
+  @media (max-width: 700px) {
+    .nav__links, .nav__social { display: none; }
+    .nav__toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      margin-right: -8px; /* the glyph, not the hit area, lines up with the gutter */
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius);
+      background: none;
+      color: var(--text);
+      cursor: pointer;
+      transition: background-color 120ms ease;
+    }
+    .nav__toggle svg { width: 22px; height: 22px; }
+    .nav__toggle:hover, .nav.is-open .nav__toggle { background: var(--surface); }
+    .nav.is-open .nav__menu {
+      display: block;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      padding: 8px var(--gutter) 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav__menu-links {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .nav__menu-links a {
+      display: block;
+      padding: 12px 0;
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .nav__menu-social { margin-top: 12px; margin-left: -11px; } /* icons' padding lines the glyphs up with the links */
+  }
+
   @media (max-width: 620px) {
     .cloud__pill--wide { display: none; } /* six pills, see PHONE_HIDDEN */
-    .nav__inner { gap: 16px; }
-    .nav__links { gap: 20px; font-size: 16px; }
-  
+
     /* The ladder's 68-column panels can't fit a phone, so the section shows
        one short program instead, edge to edge: the container loses its side
        rules and gutter and the panel its radius, and only the title and the
@@ -1028,6 +1083,14 @@
     .btn:hover { transform: none; }
   }
 }
+
+/* Below vocs' md breakpoint its content column gets overflow-x: hidden
+   (`vocs:max-md:overflow-x-hidden`), which makes the column a scroll
+   container: the sticky nav then anchors to the column's content box (32px
+   down, under its padding) and never sticks to the viewport. The landing
+   spans the viewport and the body already clips sideways overflow, so let
+   the column overflow on this page. Targets the ancestor, hence top level. */
+article:has(> .landing) { overflow: visible; }
 
 /* Keyframes cannot nest inside a style rule (lightningcss rejects it), so the
    .ln.is-add wash animation lives at the top level. */

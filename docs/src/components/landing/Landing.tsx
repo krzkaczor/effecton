@@ -7,8 +7,10 @@ import { MARK_H, MARK_PATH, MARK_W, WORDMARK_H, WORDMARK_PATHS, WORDMARK_W } fro
 import {
   CHATGPT_PATH,
   CLAUDE_PATH,
+  CLOSE_PATH,
   DISCORD_PATH,
   GITHUB_PATH,
+  MENU_PATH,
   SCAN_PATH,
   SPARKLE_PATH,
   X_PATH,
@@ -67,29 +69,7 @@ export function Landing(props: Hovers) {
   return (
     <div className="landing">
       {/* ======================= Nav + Hero (Figma 1:32) ======================= */}
-      <nav className="nav">
-        <div className="nav__inner">
-          <a href="/" aria-label="Effecton home">
-            <Mark className="nav__mark" />
-          </a>
-
-          <ul className="nav__links">
-            <li>
-              <a href={DOCS}>Docs</a>
-            </li>
-            <li>
-              <a href={API_REFERENCE}>API Reference</a>
-            </li>
-            <li>
-              <a href={CHANGELOG}>Changelog</a>
-            </li>
-          </ul>
-
-          <div className="nav__actions">
-            <SocialLinks className="nav__social" />
-          </div>
-        </div>
-      </nav>
+      <Nav />
 
       <Hero />
 
@@ -555,6 +535,81 @@ function CodePanel(props: {
 
 /* ---- Bits ------------------------------------------------------------- */
 
+const NAV_LINKS = [
+  ['Docs', DOCS],
+  ['API Reference', API_REFERENCE],
+  ['Changelog', CHANGELOG],
+] as const
+/** Widest viewport that gets the hamburger; keep in step with the nav media query in landing.css. */
+const NAV_MENU_MAX = 700
+
+/**
+ * The sticky top bar: mark, links and social icons on wide screens; on phones
+ * (≤ `NAV_MENU_MAX`) the links and icons fold into a panel under the bar
+ * behind a hamburger button. The panel closes on Escape, on a link, and when
+ * the viewport grows past the breakpoint so it can't linger behind the
+ * desktop links.
+ */
+function Nav() {
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const wide = window.matchMedia(`(min-width: ${NAV_MENU_MAX + 1}px)`)
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    function onWide() {
+      if (wide.matches) setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    wide.addEventListener('change', onWide)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      wide.removeEventListener('change', onWide)
+    }
+  }, [open])
+
+  const links = NAV_LINKS.map(([text, href]) => (
+    <li key={href}>
+      <a href={href} onClick={() => setOpen(false)}>
+        {text}
+      </a>
+    </li>
+  ))
+
+  return (
+    <nav className={open ? 'nav is-open' : 'nav'}>
+      <div className="nav__inner">
+        <a href="/" aria-label="Effecton home">
+          <Mark className="nav__mark" />
+        </a>
+
+        <ul className="nav__links">{links}</ul>
+
+        <div className="nav__actions">
+          <SocialLinks className="nav__social" />
+          <button
+            className="nav__toggle"
+            type="button"
+            aria-expanded={open}
+            aria-controls="nav-menu"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <Icon path={open ? CLOSE_PATH : MENU_PATH} stroke />
+          </button>
+        </div>
+      </div>
+
+      <div className="nav__menu" id="nav-menu">
+        <ul className="nav__menu-links">{links}</ul>
+        <SocialLinks className="nav__menu-social" />
+      </div>
+    </nav>
+  )
+}
+
 /** GitHub, X and Discord as icon links; the nav and the footer both carry them. */
 function SocialLinks(props: { className: string }) {
   return (
@@ -640,7 +695,15 @@ function AgentPrompt(props: { light?: boolean }) {
           onClick={copy}
         >
           <Icon path={SPARKLE_PATH} />
-          <span aria-live="polite">{copied ? 'Copied' : 'Copy instructions for agent'}</span>
+          {/* Both labels are stacked in one cell, so the button keeps the
+              height of the longer one even when it wraps on a phone and
+              the row doesn't jump when "Copied" replaces it. */}
+          <span className="prompt__label">
+            <span className={copied ? 'is-off' : undefined}>Copy instructions for agent</span>
+            <span className={copied ? undefined : 'is-off'} aria-live="polite">
+              {copied ? 'Copied' : ''}
+            </span>
+          </span>
         </button>
         <div className="prompt__actions">
           <a

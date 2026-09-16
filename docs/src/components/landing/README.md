@@ -14,7 +14,7 @@ vocs' `blank` layout, so nothing of the docs shell surrounds it.
 | `snippets.ts` | The comparison playground's Python emitters and tokeniser. |
 | `dot-field.ts` | The hero's canvas dot field. |
 | `mark.ts` | Path data for the "E" mark and the wordmark, exported from the file's vector geometry. The same shapes live in `public/` as SVG files. |
-| `social.ts` | The GitHub, X and Discord glyphs (simple-icons, CC0) for the icon links in the nav and footer (`SocialLinks`), plus the ChatGPT, Claude, sparkle and scan glyphs the agent-prompt row uses. |
+| `social.ts` | The GitHub, X and Discord glyphs (simple-icons, CC0) for the icon links in the nav and footer (`SocialLinks`), the ChatGPT, Claude, sparkle and scan glyphs the agent-prompt row uses, and the hamburger / close glyphs for the phone nav. |
 
 ## Design tokens
 
@@ -55,7 +55,10 @@ and set up effecton in my project.`, the ChatGPT and Claude icons open that
 prompt in either (`chatgpt.com?q=`, `claude.ai/new?q=`) and the last icon
 shows it inline. The site origin is only known in the browser, so the prompt
 is completed after mount. The row sits at 80% opacity (100% on hover) so it
-reads as a step below the buttons. The closing band has the same two buttons
+reads as a step below the buttons. The button's two labels ("Copy instructions
+for agent" / "Copied") are stacked in one grid cell and swapped with
+`visibility`, so on a phone, where the long one wraps to two lines, the row
+keeps its height while "Copied" shows. The closing band has the same two buttons
 on lime and the same row in its white `prompt--light` variant;
 the nav has no button at all, just the GitHub / X / Discord icon links. The
 Figma file's `uv add effecton` install pill is gone from all three places.
@@ -104,7 +107,10 @@ A few things in the Figma file needed a judgement call:
    static `#020202` bar inside the hero frame. It now sits at `body` level
    (outside `.hero`) so `position: sticky` holds for the whole page rather than
    only while the hero is on screen, and its fill matches `--bg`. It keeps the
-   1px bottom rule Figma specifies.
+   1px bottom rule Figma specifies. Below vocs' md breakpoint the content
+   column gets `overflow-x: hidden`, which would make it the nav's scroll
+   container (the nav would sit 32px down and never stick); a top-level
+   `article:has(> .landing)` rule in `landing.css` restores `overflow: visible`.
 
 6. **Responsive behaviour is an extrapolation.** The file is a single fixed
    1440px artboard. Desktop rendering is pixel-accurate to it; the breakpoints
@@ -112,8 +118,10 @@ A few things in the Figma file needed a judgement call:
    1300 exist for the comparison panels: a 68-column line needs ~534px at
    12px, so at ≤1360 the gutter drops to 48px, the panel gap to 32px and the
    code to 12px (which is exactly enough at 1280), and below 1260 the panels
-   stack at 13px with no minimum height. The nav links stay visible at every
-   width; at ≤620 the signature bar in
+   stack at 13px with no minimum height. At ≤700 the nav's links and social
+   icons don't fit beside the mark, so they fold into a panel under the bar
+   behind a hamburger (`Nav`, `NAV_MENU_MAX`); it closes on Escape, on a
+   link, and when the viewport grows past the breakpoint. At ≤620 the signature bar in
    the describe section is broken over seven lines the way ruff would print
    it (one parameter per line, trailing commas): the JSX carries both the
    one-line and the multi-line separators in `<Sep>` spans and CSS shows one

@@ -21,6 +21,8 @@ export const CLAUDE_PATH =
 export const SPARKLE_PATH =
   'm17 1.208l1.32 2.473L20.792 5L18.32 6.319L17 8.792l-1.318-2.473l-2.473-1.32l2.473-1.318zM8 4.333l2.667 5l5 2.667l-5 2.667l-2.666 5l-2.667-5l-5-2.667l5-2.667zm11.667 12l-1.666-3.125l-1.667 3.125L13.209 18l3.125 1.667l1.667 3.125l1.666-3.125L22.792 18z'
 
-/** Stroke icon: render with fill="none" and stroke="currentColor". */
+/** Stroke icons (Lucide): render with fill="none" and stroke="currentColor". */
+export const MENU_PATH = 'M4 6h16M4 12h16M4 18h16'
+export const CLOSE_PATH = 'M18 6 6 18M6 6l12 12'
 export const SCAN_PATH =
   'M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2m4-9h8m-8 4h10M7 16h6'
