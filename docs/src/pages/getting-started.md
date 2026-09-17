@@ -96,7 +96,7 @@ match E.run_sync_exit(program):
     case E.Succeeded(value):
         print(value)  # "hunter2"
     case E.Failure(cause):
-        print(cause)  # Fail(SecretInvalidError(...)), Fail(StatusError(...)) or Die(...)
+        print(cause)  # Fail(SecretInvalidError(...)), Fail(StatusError(...)), Die(...)
 ```
 
 :::info
