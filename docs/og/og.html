@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Source of the social preview image (public/og.png, 1200×630).
+  Open this file in a browser at a 1200×630 viewport and screenshot it; see README.md.
+  Colours and fonts follow the landing design tokens (src/components/landing/README.md).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Effecton — social preview</title>
+    <!-- Two requests: Fontshare returns only the first family when both are in one query. -->
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500&display=swap" />
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=zodiak@400&display=swap" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #101010;
+      }
+      .card {
+        box-sizing: border-box;
+        position: absolute;
+        inset: 40px;
+        border: 1px solid #2c2c2f;
+        border-radius: 8px;
+        padding: 72px 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        letter-spacing: -0.01em;
+        color: #ffffff;
+      }
+      .wordmark {
+        display: block;
+        width: 560px;
+        height: auto;
+      }
+      .tagline {
+        margin: 40px 0 0;
+        max-width: 900px;
+        font-family: 'Zodiak', Georgia, serif;
+        font-size: 44px;
+        line-height: 1.35;
+        color: #cbcbcb;
+      }
+      .footer {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 26px;
+        font-weight: 500;
+        color: #828282;
+      }
+      .footer .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #c5ff51;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div>
+        <img class="wordmark" src="../public/logo-wordmark-white.svg" alt="effecton" />
+        <p class="tagline">Building blocks for reliable, type-safe Python applications.</p>
+      </div>
+      <div class="footer"><span class="dot"></span><span>effecton.dev</span></div>
+    </div>
+  </body>
+</html>

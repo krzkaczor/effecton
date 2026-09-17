@@ -4,6 +4,18 @@ import { tyTwoslash } from './twoslash/index.ts'
 export default defineConfig({
   title: 'Effecton',
   description: 'Building blocks for reliable, type-safe Python applications.',
+  baseUrl: 'https://effecton.dev',
+  // full-static builds have no /api/og route, so every page shares public/og.png (source: og/og.html).
+  ogImageUrl: 'https://effecton.dev/og.png',
+  head: {
+    // baseUrl would otherwise emit <base href>, which points root-relative URLs at production in dev.
+    base: false,
+    meta: {
+      ogImageWidth: 1200,
+      ogImageHeight: 630,
+      ogImageAlt: 'Effecton — Building blocks for reliable, type-safe Python applications.',
+    },
+  },
   logoUrl: '/logo-wordmark-white.svg',
   iconUrl: '/icon.svg',
   colorScheme: 'dark',
@@ -15,6 +27,8 @@ export default defineConfig({
   ],
   sidebar: [
     { text: 'Introduction', link: '/introduction' },
+    { text: 'Getting started', link: '/getting-started' },
+    { text: 'Examples', link: '/examples' },
     {
       text: 'Core',
       items: [
@@ -50,6 +64,7 @@ export default defineConfig({
   ],
   socials: [
     { icon: 'github', link: 'https://github.com/krzkaczor/effecton' },
+    { icon: 'x', link: 'https://x.com/krzkaczor' },
     { icon: 'discord', link: 'https://discord.gg/fNhY7AxMyh' },
   ],
   editLink: {

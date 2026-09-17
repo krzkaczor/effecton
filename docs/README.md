@@ -18,4 +18,6 @@ environment at the repo root (`uv sync --all-packages`). See `twoslash/README.md
 directives (`# ---cut---`, `#  ^?`, `# @errors:`, `# @noErrors`) and how it works.
 
 `logo/` holds the brand PNG exports and is not used by the site; the SVGs the site
-uses live in `public/`.
+uses live in `public/`. `public/og.png` is the social preview card every page links to
+(`ogImageUrl` in `vocs.config.ts`); its source is `og/og.html`, so after editing that file
+open it in a browser at a 1200×630 viewport and save a screenshot over the PNG.

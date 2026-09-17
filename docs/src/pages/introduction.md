@@ -1,27 +1,13 @@
 ---
 title: Introduction
-description: What effecton is, how to install it, and a first program.
+description: What effecton is and why you would want to use it.
 ---
 
 # Introduction
 
-effecton is a typed effect system for Python, inspired by [Effect-TS](https://effect.website/). It is early stage and experimental.
+`effecton` is an [Effect system](https://en.wikipedia.org/wiki/Effect_system) for Python. In simple words: it's a library built around the idea of the `Effect[A, E, R]` type. An Effect represents a computation that can succeed with `A`, fail with `E`, and requires `R` to run.
 
-The core type is `Effect[A, E, R]`: a description of a computation that succeeds with `A`, fails with a typed error `E`, and requires `R` dependencies. Building an effect performs no work. You get a plain value that you can compose, pass around and test, and a runner executes it at the edge of your program.
-
-## Installation
-
-effecton requires Python 3.14 or later.
-
-```sh
-uv add effecton
-# or
-pip install effecton
-```
-
-## A first program
-
-Consumer code imports the package once as `E` and reaches everything through it. Hover any name in the snippet to see the type ty infers for it.
+An example is worth a thousand words, so:
 
 ```python
 from dataclasses import dataclass
@@ -29,56 +15,43 @@ from typing import final
 
 import effecton as E
 
+program = E.success(5)
+# ^?
 
-# Custom errors extend EffectonError and are final: one leaf class per cause
+
+# Custom errors should extend E.EffectonError
 @final
 @dataclass(frozen=True)
-class SecretInvalidError(E.EffectonError):
-    actual: str
+class CustomError(E.EffectonError):
+    actual_value: str
 
 
-# Succeeds with str, fails with SecretInvalidError or an HTTP error,
-# and requires an HttpClient
-@E.gen
-def check_secret() -> E.EffectGen[
-    str,
-    SecretInvalidError | E.HttpClient.TransportError | E.HttpClient.StatusError,
-    E.HttpClient.Protocol,
-]:
-    http = yield from E.require(E.HttpClient.Protocol)
-
-    response = yield from http.get("https://example.com/secret")
-    response = yield from E.HttpClient.filter_status_ok(response)
-    if response.text != "hunter2":
-        yield from E.fail(SecretInvalidError(response.text))
-    return response.text
+program = E.fail(CustomError("wrong"))
+# ^?
 
 
-# The program can only run once its requirements are provided
-program = check_secret().provide(E.HttpClient.Protocol)(E.HttpClient.SyncLive())
-#  ^?
-
-match E.run_sync_exit(program):
-    case E.Succeeded(value):
-        print(value)  # "hunter2"
-    case E.Failure(cause):
-        print(cause)  # Fail(SecretInvalidError(...)) or Fail(StatusError(...))
+# Dependency injection is built right into the framework
+program = E.require(E.HttpClient.Protocol)
+# ^?
 ```
 
-Three things happen here:
+:::tip
+The convention is to import the whole of effecton as `E`.
+:::
 
-- **Errors are typed.** The signature lists every way `check_secret` can fail. `catch` handles one error class at a time and removes it from the type, so the checker knows what is left.
-- **Requirements are visible.** `E.require` puts `HttpClient.Protocol` into the `R` channel. Forgetting to provide it is a type error, not a runtime surprise, and a test can provide `E.HttpClient.Test` instead of the live client.
-- **Nothing runs until you say so.** `program` is a value. `run_sync_exit` interprets it and returns an `Exit` to match on. `run_sync` returns the value and raises on failure.
+:::note
+Don't worry, most of the time you will use a [generator syntax](/core/generator-syntax) that reads and writes like async/await.
+:::
 
-## What you get
+It's important to understand that **none of these effects do anything yet**. They need to be run to execute. This allows composing effects like Lego blocks (for example: adding timeouts or retries).
 
-- **Type-safe errors.** One frozen `EffectonError` dataclass per failure cause, precise unions in signatures, and `catch` / `catch_all` to handle them.
-- **Dependency injection.** Requirements are part of the type. Provide them one at a time with `provide(T)(impl)`.
-- **Resource management.** `on_exit` finalizers and `Scope` release resources in reverse order, on success and failure alike.
-- **Generator syntax.** `@E.gen` with `yield from` reads like ordinary sequential code while staying fully typed.
-- **A standard library.** Logger, `Clock`, `Random`, `FileSystem`, `Process` and `HttpClient` services, each with a live and a test implementation, plus fibers, racing, timeouts and retries.
-- **Sync and async runners.** The same effect runs under `run_sync` or `run_async`. `run_main` is the entry point for CLIs and reports failures with proper exit codes.
+## Why would you want to use it?
+
+- **Type-safe errors.** No guessing what a given piece of code might throw. Handle specific errors with `catch` or `catch_all`.
+- **Dependency injection.** Requirements are part of the type. All requirements need to be fulfilled before an effect can run.
+- **Sync and async runners.** The same effect runs under `run_sync` or `run_async`.
+- **Testability.** Since dependencies are explicit, tests can inject side-effect-free stubs.
+- **Rich standard library.** Effecton needs building blocks that are also effect-based, and provides many of them: Logger, Tracer, FileSystem (sync/async), HttpClient (sync/async) and more.
 
 ## Motivation
 
@@ -86,21 +59,6 @@ Effect based systems provide programmers with building blocks that might be diff
 
 Furthermore, *agents love* strict type systems and building blocks.
 
-effecton is inspired by [Effect-TS](https://effect.website/), [ZIO](https://zio.dev/) and stateless. For a full example, see [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
+effecton is inspired by [Effect(TS)](https://effect.website/), [ZIO(Scala)](https://zio.dev/) and [stateless](https://github.com/suned/stateless). For a full example, see [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
 
-## Roadmap
-
-- [x] `ty` support
-- [x] Support for async/sync code
-- [x] Retries
-- [x] Timeouts
-- [x] `Random` implicit service
-- [x] `FileSystem` service and `Path`
-- [x] `HttpClient` service
-- [ ] More examples of integrations with existing ecosystem (fastapi, pydantic etc.)
-
-## Where next
-
-- [Building effects](/core/building-effects) starts the Core section: constructing, running and composing effects, typed errors, requirements, resources and generator syntax.
-- [Logger](/std/logger) starts the Standard library section: the built-in services, each with a live and a test implementation, plus fibers, racing, timeouts and retries.
-- The [API Reference](/api) lists every exported name with its signature and docstring.
+If this sounds intriguing, keep on reading the [getting started guide](/getting-started).
