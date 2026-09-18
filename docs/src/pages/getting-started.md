@@ -236,6 +236,19 @@ tolerant = check_secret().catch(SecretInvalidError)(
 
 `SecretInvalidError` is gone from the error type. The two HTTP errors remain, and `catch_all` handles whatever is left. See [Error handling](/core/error-handling).
 
+## Coding with agents
+
+The repository ships an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that teaches coding agents effecton's best practices: one `@final` error class per cause, the `Protocol` / `Live` / `Test` service pattern, `yield from` in `@E.gen` programs, side effects only through services, and tests against `Test` implementations. It lives in [`.agents/skills/effecton`](https://github.com/krzkaczor/effecton/tree/main/.agents/skills/effecton) as a single `SKILL.md`. Copy it into your project, and symlink it for Claude Code, which reads skills from `.claude/skills`:
+
+```sh
+mkdir -p .agents/skills/effecton .claude/skills
+curl -fsSL https://raw.githubusercontent.com/krzkaczor/effecton/main/.agents/skills/effecton/SKILL.md \
+  -o .agents/skills/effecton/SKILL.md
+ln -s ../../.agents/skills/effecton .claude/skills/effecton
+```
+
+The agent sees the skill's one-line description in every session and loads the full guide when it works on code that imports effecton; in Claude Code you can also invoke it directly as `/effecton`.
+
 ## Where next
 
 - [Building effects](/core/building-effects) starts the Core section: constructing and composing effects, typed errors, requirements, resources and generator syntax.

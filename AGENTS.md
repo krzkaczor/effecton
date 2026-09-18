@@ -2,6 +2,8 @@
 
 effecton is a typed effect system for Python inspired by Effect-TS: sync-only, runtime dependencies limited to typing-extensions, aiofiles and httpx2, Python 3.14, typechecked with ty. Kernel modules live in `packages/effecton/src/effecton/`, std services in `packages/effecton/src/effecton/std/`, and tests collocated next to the module they cover as `test_<module>.py` (the release workflow deletes every `test_*.py` under `src/` before building the published package). `packages/api-reference` renders the docs site's API Reference page from these sources with griffe (`uv run api-reference`, run by the docs build): every name exported from `effecton/__init__.py` must belong to a module listed in its `topics.TOPICS` table, or the docs build fails.
 
+`.agents/skills/effecton/SKILL.md` is an Agent Skill for agents writing code *with* effecton in their own projects (symlinked into `.claude/skills/` for Claude Code, and advertised on the docs site's Getting started page). This guide stays the complete reference for working *on* effecton; repo-only rules such as verification, changesets, type pins and the ty inference notes live here alone. When a rule that also applies to effecton users changes (errors, services, `@gen` style, tests), update the skill too.
+
 ## Verification
 
 Verify every change as follows:

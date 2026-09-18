@@ -57,7 +57,7 @@ It's important to understand that **none of these effects do anything yet**. The
 
 Effect based systems provide programmers with building blocks that might be difficult at first but yield benefits in the future. Handling edge cases and thorough testing might be optional in the prototype stage but becomes critical in production.
 
-Furthermore, *agents love* strict type systems and building blocks.
+Furthermore, *agents love* strict type systems and building blocks. The repository ships an [agent skill](/getting-started#coding-with-agents) that teaches them effecton's best practices.
 
 effecton is inspired by [Effect(TS)](https://effect.website/), [ZIO(Scala)](https://zio.dev/) and [stateless](https://github.com/suned/stateless). For a full example, see [skills-cli](https://github.com/krzkaczor/effecton/tree/main/packages/examples/skills-cli), a small CLI for installing agent skills built entirely on effecton services.
 
