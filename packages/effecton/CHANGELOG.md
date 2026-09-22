@@ -1,5 +1,12 @@
 # effecton
 
+## 0.3.1
+
+### Patch Changes
+
+- Add E.Schema: two-way schemas with Struct classes, combinators, guarded transforms (`to=`, `S.instance_of`) and `Check` refinements applied with `schema.check(...)`, whose decode and encode fail with a ParseError listing every issue ([#32](https://github.com/krzkaczor/effecton/pull/32))
+- Add E.Cli: annotated Args classes decoded through E.Schema, nested commands, --help, --version and a UsageError carrying the reason; add E.Process.argv() ([#34](https://github.com/krzkaczor/effecton/pull/34))
+
 ## 0.3.0
 
 ### Minor Changes
