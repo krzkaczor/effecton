@@ -684,18 +684,25 @@ class _FieldSpec:
     key: str | None
 
 
-def _struct_schema(cls: type[Any]) -> Schema[Any, dict[str, object]]:
-    hints = typing.get_type_hints(cls)
+type _FieldResolver = Callable[
+    [dataclasses.Field[Any], Any, str], tuple[str, Schema[Any, Any]]
+]
+
+
+def _struct_schema(
+    cls: type[Any], resolve: _FieldResolver | None = None
+) -> Schema[Any, dict[str, object]]:
+    """Build a struct codec; resolve gives each field its wire key and schema.
+
+    Struct resolves through S.field metadata and JSON inference; Cli.Args
+    passes a resolver keyed by option names with text codecs.
+    """
+    resolve_field = _struct_field if resolve is None else resolve
+    hints = typing.get_type_hints(cls, include_extras=True)
     plan: list[tuple[str, str, Schema[Any, Any], Any]] = []
     owner_of: dict[str, str] = {}
     for f in dataclasses.fields(cls):
-        spec: _FieldSpec = f.metadata.get(_FIELD, _FieldSpec(schema=None, key=None))
-        schema = (
-            _infer(hints[f.name], f"{cls.__name__}.{f.name}")
-            if spec.schema is None
-            else spec.schema
-        )
-        key = f.name if spec.key is None else spec.key
+        key, schema = resolve_field(f, hints[f.name], f"{cls.__name__}.{f.name}")
         if key in owner_of:
             raise TypeError(
                 f"{cls.__name__}: fields {owner_of[key]!r} and {f.name!r} "
@@ -737,6 +744,16 @@ def _struct_schema(cls: type[Any]) -> Schema[Any, dict[str, object]]:
         )
 
     return Schema(decode_struct, encode_struct)
+
+
+def _struct_field(
+    f: dataclasses.Field[Any], hint: Any, where: str
+) -> tuple[str, Schema[Any, Any]]:
+    spec: _FieldSpec = f.metadata.get(_FIELD, _FieldSpec(schema=None, key=None))
+    if typing.get_origin(hint) is typing.Annotated:
+        hint = typing.get_args(hint)[0]
+    schema = _infer(hint, where) if spec.schema is None else spec.schema
+    return (f.name if spec.key is None else spec.key, schema)
 
 
 def _infer(annotation: Any, where: str) -> Schema[Any, Any]:

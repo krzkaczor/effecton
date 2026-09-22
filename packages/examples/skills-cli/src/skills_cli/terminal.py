@@ -1,10 +1,8 @@
-"""Terminal service: Protocol plus Live (typer prompt) and Test (canned answer)."""
+"""Terminal service: Protocol plus Live (stdin prompt) and Test (canned answer)."""
 
 import typing
 from dataclasses import dataclass, field
 from typing import runtime_checkable
-
-import typer
 
 import effecton as E
 
@@ -15,10 +13,11 @@ class Protocol(typing.Protocol):
 
 
 class Live(Protocol):
-    @E.suspend
     def confirm(self, prompt: str) -> E.Effect[bool]:
-        # Ctrl-C or EOF raises typer.Abort, which stays a defect.
-        return E.success(typer.confirm(prompt))
+        # EOF or Ctrl-C inside input() raises and stays a defect.
+        return E.sync(
+            lambda: input(f"{prompt} [y/N]: ").strip().lower() in ("y", "yes")
+        )
 
 
 @dataclass

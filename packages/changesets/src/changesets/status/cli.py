@@ -1,17 +1,23 @@
 """The `changeset status` command."""
 
-import typer
-
 import effecton as E
 from changesets.shared import repo
+from changesets.status.program import StatusError
 from changesets.status.program import status as status_program
 
+Cli = E.Cli
 
-def status() -> None:
-    """Show pending changesets and the releases they would produce."""
-    report = E.run_main(
-        repo.from_cwd(status_program)
-        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
-        .provide(E.Process.Protocol)(E.Process.Live())
-    )
-    typer.echo(report)
+
+@E.gen
+def run_status() -> E.EffectGen[
+    None, StatusError, E.FileSystem.Protocol | E.Process.Protocol
+]:
+    report = yield from repo.from_cwd(status_program)
+    yield from E.sync(lambda: print(report))
+
+
+status = Cli.command(
+    "status",
+    handler=run_status,
+    help="Show pending changesets and the releases they would produce.",
+)

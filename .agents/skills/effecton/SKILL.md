@@ -149,7 +149,7 @@ class Test(Protocol):
         return E.success(self.answer)
 ```
 
-- Import it as `from my_app import terminal as Terminal`, then use `Terminal.Protocol`, `Terminal.Live()`, `Terminal.Test()`. Std services follow the same shape: `E.Clock`, `E.Random`, `E.FileSystem`, `E.Process`, `E.HttpClient`, `E.Tracer`.
+- Import it as `from my_app import terminal as Terminal`, then use `Terminal.Protocol`, `Terminal.Live()`, `Terminal.Test()`. Std services follow the same shape: `E.Clock`, `E.Random`, `E.FileSystem`, `E.Process`, `E.HttpClient`, `E.Cli`, `E.Tracer`.
 - `Test` implementations are plain dataclasses that record what they received (`prompts`, `requests`, `files`), so tests can assert on the recorded state afterwards.
 - Read a dependency with `E.require(T)`; it lands in `R`. `effect.provide(T)(impl)` subtracts it, one requirement at a time, anywhere in the program. The runners only accept an effect whose `R` is `Never`, so an unmet requirement is a type error.
 - Services that touch the outside world ship a live implementation per runner: `SyncLive` for `E.run_sync`, `AsyncLive` for the `E.run_async` family and `E.run_main`.
@@ -161,6 +161,12 @@ class Test(Protocol):
 - **Time goes through `E.now()` and `E.sleep(timedelta)`**, not `datetime.now`, `time.time` or `time.sleep`, so `E.Clock.Test` can drive it. Randomness goes through `E.random()` / `E.Random`, HTTP through `E.HttpClient`, the working and home directories and the environment through `E.Process`, and logging through `E.log_info` and friends.
 - Resources are acquired with `E.acquire_and_release(acquire, release)` and discharged with `.scoped()`; one-off cleanup attaches with `.on_exit(finalizer)`. Finalizers run on success, failure and interruption alike.
 - Resilience is composition, not hand-rolled loops: `effect.retry(E.Schedule.exponential(base), times=5)`, `effect.timeout(timedelta(seconds=5))`, `E.race_first(...)`, `E.fork(effect)`.
+
+## Command-line programs
+
+- **Use `E.Cli`, not typer or click.** Arguments are a `Cli.Args` class with `Annotated[T, Cli.Option(help=...)]` / `Cli.Argument(...)` fields; `str`, `int`, `float`, `E.Path`, `datetime`, `date` and `Literal[...]` of strings infer their text codec, `bool` is a flag, `T | None` is optional, `tuple[T, ...]` repeats, and any `S.Schema[T, str]` goes in `schema=`.
+- A command is `Cli.command(name, args=Args, handler=run_it, help=...)`, where the handler returns `E.Effect[None, E, R]`; parents are `Cli.command(name, help=...).with_subcommands(...)`. `Cli.run(app)` is one effect requiring `E.Process`; wire the `Live` services at the root and hand it to `E.run_main`. Output is `E.sync(lambda: print(...))` inside the handler.
+- Parsing failures are one `Cli.UsageError` (exit code 2) carrying a `reason` — `UnknownOption`, `MissingCommand`, `InvalidArguments`, and the like — so `effect.catch(Cli.UsageError)(handler)` catches every parsing failure at once; `--help` and `--version` succeed. Test a CLI with `E.Process.Test(arguments=(...))`, `Test` services and `E.run_sync_exit`; never a `CliRunner` or monkeypatching.
 
 ## Running effects
 

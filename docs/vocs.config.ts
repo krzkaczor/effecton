@@ -55,6 +55,7 @@ export default defineConfig({
         { text: 'FileSystem', link: '/std/file-system' },
         { text: 'Path', link: '/std/path' },
         { text: 'Schema', link: '/std/schema' },
+        { text: 'Cli', link: '/std/cli' },
         { text: 'Process', link: '/std/process' },
         { text: 'HttpClient', link: '/std/http-client' },
         { text: 'Fibers', link: '/std/fibers' },

@@ -1,18 +1,23 @@
-"""Typer entry point: assemble one CLI from the per-command modules."""
+"""Entry point: assemble one CLI from the per-command modules."""
 
-import typer
-
+import effecton as E
+from changesets.add import name_generator as NameGenerator
 from changesets.add.cli import add
 from changesets.notes.cli import notes
 from changesets.status.cli import status
 from changesets.version.cli import version
 
-app = typer.Typer(help="Changeset-based changelog and version management.")
-app.command()(add)
-app.command()(status)
-app.command()(version)
-app.command()(notes)
+Cli = E.Cli
+
+app = Cli.command(
+    "changeset", help="Changeset-based changelog and version management."
+).with_subcommands(add, status, version, notes)
 
 
 def run() -> None:
-    app()
+    E.run_main(
+        Cli.run(app)
+        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .provide(E.Process.Protocol)(E.Process.Live())
+        .provide(NameGenerator.Protocol)(NameGenerator.Live())
+    )

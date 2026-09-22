@@ -39,3 +39,41 @@ def test_status_fails_outside_a_changeset_repository(tmp_path):
     assert "ERROR" in result.stderr
     assert "Traceback" not in result.stderr
     assert f"No .changeset directory found in {tmp_path} or any parent" in result.stderr
+
+
+def test_add_without_a_package_is_a_usage_error(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "changesets",
+            "add",
+            "--bump",
+            "patch",
+            "--message",
+            "m",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "Missing option '--package'." in result.stderr
+    assert "Try 'changeset add --help' for help." in result.stderr
+
+
+def test_help_exits_zero(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "-m", "changesets", "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.startswith("Usage: changeset [OPTIONS] COMMAND [ARGS]...\n")
+    assert "  add      Create a changeset" in result.stdout

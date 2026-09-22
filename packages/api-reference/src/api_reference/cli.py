@@ -2,31 +2,51 @@
 
 from typing import Annotated
 
-import typer
-
 import effecton as E
 from api_reference import collect
 from api_reference.program import write_reference
 from api_reference.topics import TOPICS
 
-app = typer.Typer(help="Render the docs API Reference page from the effecton sources.")
+Cli = E.Cli
 
 
-@app.command()
-def generate(
+class Generate(Cli.Args):
     out: Annotated[
-        str, typer.Option(help="Where to write the page, relative to the cwd.")
-    ] = "docs/src/pages/api.md",
-) -> None:
-    """Render the API Reference page from the effecton sources."""
-    path = E.run_main(
+        E.Path, Cli.Option(help="Where to write the page, relative to the cwd.")
+    ] = E.Path("docs/src/pages/api.md")
+
+
+def run_generate(
+    args: Generate,
+) -> E.Effect[
+    None,
+    collect.CollectError
+    | E.FileSystem.FileNotFound
+    | E.FileSystem.PermissionDenied
+    | E.FileSystem.PathAlreadyExists
+    | E.FileSystem.PathIsADirectory
+    | E.FileSystem.PathIsNotADirectory,
+    E.FileSystem.Protocol,
+]:
+    return (
         E.sync(collect.load)
         .flat_map(lambda root: collect.collect(root, TOPICS))
-        .flat_map(lambda reference: write_reference(E.Path(out), reference))
-        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .flat_map(lambda reference: write_reference(args.out, reference))
+        .flat_map(lambda path: E.sync(lambda: print(f"Wrote {path}")))
     )
-    typer.echo(f"Wrote {path}")
+
+
+app = Cli.command(
+    "api-reference",
+    args=Generate,
+    handler=run_generate,
+    help="Render the docs API Reference page from the effecton sources.",
+)
 
 
 def run() -> None:
-    app()
+    E.run_main(
+        Cli.run(app)
+        .provide(E.FileSystem.Protocol)(E.FileSystem.AsyncLive())
+        .provide(E.Process.Protocol)(E.Process.Live())
+    )

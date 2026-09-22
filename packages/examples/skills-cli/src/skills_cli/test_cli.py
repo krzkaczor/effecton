@@ -1,51 +1,55 @@
-import logging
-
-import typer
-from typer.testing import CliRunner
-
 import effecton as E
-from skills_cli import cli
+from skills_cli import cli, parse_url
 from skills_cli import terminal as Terminal
 
+SKILL_URL = "https://github.com/octo/my-skill/blob/main/SKILL.md"
+RAW_URL = "https://raw.githubusercontent.com/octo/my-skill/main/SKILL.md"
 
-# @todo: once effecton has built-in CLI support this can inject dependencies properly
-def test_install_success(monkeypatch):
-    home = E.Path("/home/me")
+
+def program(argv: tuple[str, ...], fs: E.FileSystem.Test, http: E.HttpClient.Test):
+    return (
+        E.Cli.run(cli.app)
+        .provide(E.Process.Protocol)(
+            E.Process.Test(home_directory=E.Path("/home/me"), arguments=argv)
+        )
+        .provide(E.FileSystem.Protocol)(fs)
+        .provide(E.HttpClient.Protocol)(http)
+        .provide(Terminal.Protocol)(Terminal.Test())
+    )
+
+
+def test_install_success(capsys):
     fs = E.FileSystem.Test()
     body = "---\ndisable-model-invocation: true\n---\n\nbody"
-    http = E.HttpClient.Test(
-        responses={
-            "https://raw.githubusercontent.com/octo/my-skill/main/SKILL.md": body
-        }
-    )
-    monkeypatch.setattr(E.FileSystem, "AsyncLive", lambda: fs)
-    monkeypatch.setattr(E.Process, "Live", lambda: E.Process.Test(home_directory=home))
-    monkeypatch.setattr(E.HttpClient, "AsyncLive", lambda: http)
-    monkeypatch.setattr(Terminal, "Live", Terminal.Test)
-    app = typer.Typer()
-    app.command()(cli.main)
+    http = E.HttpClient.Test(responses={RAW_URL: body})
 
-    result = CliRunner().invoke(
-        app, ["https://github.com/octo/my-skill/blob/main/SKILL.md"]
+    exit = E.run_sync_exit(program((SKILL_URL,), fs, http))
+
+    assert exit == E.Succeeded(None)
+    assert capsys.readouterr().out == "Skill my-skill installed.\n"
+    assert E.Path("/home/me/.agents/skills/my-skill/SKILL.md") in fs.files
+
+
+def test_install_failure(capsys):
+    exit = E.run_sync_exit(
+        program(("not-a-url",), E.FileSystem.Test(), E.HttpClient.Test())
     )
 
-    assert result.exit_code == 0
-    assert result.stdout == "Skill my-skill installed.\n"
-    assert home / ".agents/skills/my-skill/SKILL.md" in fs.files
+    assert exit == E.Failure(
+        E.Fail(parse_url.UnsupportedHost(url="not-a-url", host=""))
+    )
+    assert capsys.readouterr().out == ""
 
 
-def test_install_failure(caplog):
-    app = typer.Typer()
-    app.command()(cli.main)
-    logger = logging.getLogger("effecton.pretty")
-    logger.addHandler(caplog.handler)
+def test_missing_url_is_a_usage_error():
+    exit = E.run_sync_exit(program((), E.FileSystem.Test(), E.HttpClient.Test()))
 
-    try:
-        result = CliRunner().invoke(app, ["not-a-url"])
-    finally:
-        logger.removeHandler(caplog.handler)
-
-    assert result.exit_code == 1
-    assert result.stdout == ""
-    assert any(record.levelno == logging.ERROR for record in caplog.records)
-    assert "Traceback" not in caplog.text
+    assert exit == E.Failure(
+        E.Fail(
+            E.Cli.UsageError(
+                "skills-cli",
+                "Usage: skills-cli [OPTIONS] SKILL_URL",
+                E.Cli.InvalidArguments((E.Schema.MissingKey(("SKILL_URL",)),)),
+            )
+        )
+    )

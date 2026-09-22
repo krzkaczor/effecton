@@ -1,4 +1,5 @@
 import os
+import sys
 
 import effecton as E
 
@@ -47,3 +48,23 @@ def test_provided_as_a_requirement():
     )
 
     assert result == E.Path("/repo")
+
+
+def test_live_reads_the_command_line_arguments(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["prog", "add", "--package", "effecton"])
+
+    result = E.run_sync(E.Process.Live().argv())
+
+    assert result == ("add", "--package", "effecton")
+
+
+def test_test_returns_the_configured_arguments():
+    process = E.Process.Test(arguments=("status",))
+
+    result = E.run_sync(process.argv())
+
+    assert result == ("status",)
+
+
+def test_test_defaults_to_no_arguments():
+    assert E.run_sync(E.Process.Test().argv()) == ()

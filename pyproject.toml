@@ -67,6 +67,8 @@ ignore = ["ANN204"]
 "packages/effecton/src/effecton/std/test_process.py" = ["TID251", "PTH"]
 # Schema internals pass A | _Issues for a generic A, so they are typed Any on purpose.
 "packages/effecton/src/effecton/std/schema.py" = ["ANN401"]
+# Cli internals pass decoded values of any Args through the same untyped plan.
+"packages/effecton/src/effecton/std/cli.py" = ["ANN401"]
 # yield_now is a scheduling point, not a pause.
 "packages/effecton/src/effecton/std/fiber.py" = ["TID251"]
 # Runner tests use asyncio.sleep(0) as a yield point, not as a pause.

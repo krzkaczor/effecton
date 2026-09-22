@@ -28,6 +28,7 @@ from effecton.run_sync import (
     run_sync,
     run_sync_exit,
 )
+from effecton.std import cli as Cli
 from effecton.std import clock as Clock
 from effecton.std import file_system as FileSystem
 from effecton.std import http_client as HttpClient
@@ -71,6 +72,7 @@ from effecton.suspend import suspend
 __all__ = [
     "AsyncEffectInSyncRun",
     "Cause",
+    "Cli",
     "Clock",
     "CurrentLogAnnotations",
     "CurrentLogLevel",

@@ -5,7 +5,7 @@ description: What the running process knows about its environment, as an explici
 
 # Process
 
-`E.Process` is what the running process knows about its environment: `cwd()` and `home()` today, with environment variables to follow. Both return an `E.Path`. It is an explicit requirement like the FileSystem, so a CLI reads its starting directory through it and a test pins that directory with `E.Process.Test(current_directory=..., home_directory=...)` instead of depending on where pytest happens to run.
+`E.Process` is what the running process knows about its environment: `cwd()`, `home()` and `argv()` today, with environment variables to follow. The directories return an `E.Path`, `argv()` a `tuple[str, ...]` without the program name. It is an explicit requirement like the FileSystem, so a CLI reads its starting directory through it and a test pins that directory with `E.Process.Test(current_directory=..., home_directory=..., arguments=...)` instead of depending on where pytest happens to run.
 
 ```python
 from collections.abc import Callable

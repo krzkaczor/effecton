@@ -11,6 +11,7 @@ def _reads_are_plain_effects_of_path() -> None:
 
     assert_type(process.cwd(), E.Effect[E.Path])
     assert_type(process.home(), E.Effect[E.Path])
+    assert_type(process.argv(), E.Effect[tuple[str, ...]])
     assert_type(
         E.require(E.Process.Protocol),
         E.Effect[E.Process.Protocol, Never, E.Process.Protocol],
@@ -22,6 +23,7 @@ def _reads_are_plain_effects_of_path() -> None:
         E.Effect[E.Path],
     )
     assert_type(E.Process.Test().current_directory, E.Path)
+    assert_type(E.Process.Test(arguments=("a",)).arguments, tuple[str, ...])
 
 
 def _process_negative() -> None:
@@ -30,6 +32,9 @@ def _process_negative() -> None:
 
     # The directories are Paths, not strings.
     E.Process.Test(current_directory="/repo")  # ty: ignore[invalid-argument-type]
+
+    # Arguments are a tuple of strings, not a list.
+    E.Process.Test(arguments=["a"])  # ty: ignore[invalid-argument-type]
 
     # The requirement must be provided before running.
     E.run_sync(E.require(E.Process.Protocol))  # ty: ignore[invalid-argument-type]

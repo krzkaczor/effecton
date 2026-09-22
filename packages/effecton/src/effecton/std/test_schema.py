@@ -1,7 +1,7 @@
 import threading
 from collections.abc import Mapping
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import pytest
 
@@ -818,3 +818,28 @@ def test_json_round_trip():
 
     assert text == '["2026-09-20"]'
     assert back == ok((date(2026, 9, 20),))
+
+
+def test_annotated_metadata_is_ignored_on_struct_fields():
+    class Tagged(S.Struct):
+        count: Annotated[int, "some metadata"]
+        label: Annotated[str, "x"] = S.field(key="l")
+
+    result = E.run_sync_exit(S.decode(Tagged)({"count": 3, "l": "a"}))
+
+    assert result == ok(Tagged(count=3, label="a"))
+
+
+def test_struct_schema_accepts_a_custom_field_resolver():
+    class Pair(S.Struct):
+        left: int
+        right: int
+
+    def by_upper_key(f, hint, where):
+        return (f.name.upper(), S.IntFromString)
+
+    schema = S._struct_schema(Pair, by_upper_key)
+
+    assert E.run_sync(S.decode(schema)({"LEFT": "1", "RIGHT": "2"})) == Pair(
+        left=1, right=2
+    )
